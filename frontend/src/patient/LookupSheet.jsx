@@ -187,7 +187,11 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
 
   return (
     <BottomSheet open={open} onClose={handleClose} maxHeight="88%">
-      <div className="px-[20px] pb-[22px] pt-[8px] flex-1 overflow-y-auto">
+
+      {/* ── Scrollable body — step content without primary CTA buttons ──
+          Buttons are extracted to the pinned footer below so they stay
+          visible regardless of how much content the step renders. */}
+      <div className="px-[20px] pt-[8px] flex-1 overflow-y-auto">
 
         {/* ── STEP 1: Phone entry ── */}
         {step === 'phone' && (
@@ -207,17 +211,6 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
               />
             </div>
             {error && <p className="text-[12px] text-red-500 mb-3">{error}</p>}
-            <button
-              onClick={handleFind}
-              disabled={phone.length < 10 || loading}
-              className="w-full py-[13px] rounded-[14px] border-none font-bold text-[14.5px] cursor-pointer transition-all duration-200 disabled:cursor-not-allowed"
-              style={{
-                background: phone.length >= 10 ? accent : '#e5e7eb',
-                color: phone.length >= 10 ? 'white' : '#9ca3af',
-              }}
-            >
-              {loading ? 'Sending code…' : 'Find My Records'}
-            </button>
           </>
         )}
 
@@ -261,22 +254,8 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
 
             {error && <p className="text-[12px] text-red-500 text-center mb-3">{error}</p>}
 
-            {/* Verify button */}
-            <button
-              onClick={handleVerify}
-              disabled={otp.length < 4 || loading}
-              className="w-full py-[13px] rounded-[14px] border-none font-bold text-[14.5px] cursor-pointer transition-all duration-200 mb-3 disabled:cursor-not-allowed"
-              style={{
-                background: otp.length === 4 ? accent : '#e5e7eb',
-                color: otp.length === 4 ? 'white' : '#9ca3af',
-                boxShadow: otp.length === 4 ? `0 4px 16px ${accent}38` : 'none',
-              }}
-            >
-              {loading ? 'Verifying…' : 'Verify & View Records'}
-            </button>
-
-            {/* Resend */}
-            <div className="text-center pb-6">
+            {/* Resend row — stays in the scrollable body; not a primary CTA */}
+            <div className="text-center pb-4">
               {resent ? (
                 <span className="text-[11px] font-semibold text-[#22c55e] uppercase tracking-[0.07em]">
                   ✓ Code resent to WhatsApp
@@ -313,7 +292,7 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
                   Verified · {displayPhone}
                 </p>
                 {error && <p className="text-[12px] text-red-500 mb-3">{error}</p>}
-                <div className="bg-[#f9fafb] rounded-2xl overflow-hidden border border-gray-100">
+                <div className="bg-[#f9fafb] rounded-2xl overflow-hidden border border-gray-100 mb-4">
                   {upcoming ? (
                     <AppointmentCard
                       type="upcoming"
@@ -330,7 +309,7 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
               </>
             )}
 
-            {/* ── 3b: Confirm cancel ── */}
+            {/* ── 3b: Confirm cancel — body only (buttons go to footer) ── */}
             {cancelStep === 'confirm' && (
               <div className="flex flex-col items-center py-1">
                 <div className="w-[52px] h-[52px] rounded-full bg-red-50 flex items-center justify-center mb-4">
@@ -342,29 +321,15 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
                 <h3 className="text-[18px] font-extrabold text-gray-900 tracking-tight mb-[10px] text-center">
                   Cancel Appointment?
                 </h3>
-                <p className="text-[13px] text-gray-500 leading-relaxed text-center mb-[22px]">
+                <p className="text-[13px] text-gray-500 leading-relaxed text-center mb-4">
                   Are you sure you want to cancel your appointment for{' '}
                   <strong className="text-gray-700">{formatAppt(upcoming)}</strong>?
                 </p>
-                {error && <p className="text-[12px] text-red-500 mb-3">{error}</p>}
-                <button
-                  onClick={handleCancel}
-                  disabled={loading}
-                  className="w-full py-[14px] rounded-[14px] border-none bg-[#D93025] text-white font-bold text-[15px] cursor-pointer mb-[10px] disabled:opacity-60"
-                  style={{ boxShadow: '0 6px 20px rgba(217,48,37,0.28)', letterSpacing: '-0.01em' }}
-                >
-                  {loading ? 'Cancelling…' : 'Yes, Cancel'}
-                </button>
-                <button
-                  onClick={() => { setCancelStep('view'); setError(''); }}
-                  className="w-full py-[13px] rounded-[14px] border border-gray-200 bg-white text-gray-700 font-semibold text-[14px] cursor-pointer"
-                >
-                  Keep Appointment
-                </button>
+                {error && <p className="text-[12px] text-red-500 mb-3 text-center">{error}</p>}
               </div>
             )}
 
-            {/* ── 3c: Cancelled success ── */}
+            {/* ── 3c: Cancelled success — body only (button goes to footer) ── */}
             {cancelStep === 'cancelled' && (
               <div className="flex flex-col items-center py-2">
                 <div className="w-[72px] h-[72px] rounded-full bg-[#dcfce7] flex items-center justify-center mb-[18px]"
@@ -377,23 +342,85 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
                 <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight mb-[10px] text-center">
                   Appointment Cancelled
                 </h3>
-                <p className="text-[12.5px] text-gray-500 leading-relaxed text-center mb-6">
+                <p className="text-[12.5px] text-gray-500 leading-relaxed text-center">
                   Your appointment has been cancelled. A confirmation message has been sent to{' '}
                   <strong style={{ color: accent }}>{displayPhone}</strong>.
                 </p>
-                <button
-                  onClick={handleClose}
-                  className="w-full py-[14px] rounded-[14px] border-none text-white font-bold text-[15px] cursor-pointer"
-                  style={{ background: accent, boxShadow: `0 6px 22px ${accent}42`, letterSpacing: '-0.01em' }}
-                >
-                  Back to Booking
-                </button>
               </div>
             )}
           </>
         )}
 
       </div>
+
+      {/* ── Pinned footer — primary CTA for each step, always visible ──
+          Sits outside the scroll area so it cannot be pushed below the fold.
+          cancelStep='view' has no footer: the cancel action lives inside AppointmentCard. */}
+
+      {step === 'phone' && (
+        <div className="px-[20px] pb-[22px] pt-[10px] flex-shrink-0 border-t border-gray-100">
+          <button
+            onClick={handleFind}
+            disabled={phone.length < 10 || loading}
+            className="w-full py-[13px] rounded-[14px] border-none font-bold text-[14.5px] cursor-pointer transition-all duration-200 disabled:cursor-not-allowed"
+            style={{
+              background: phone.length >= 10 ? accent : '#e5e7eb',
+              color: phone.length >= 10 ? 'white' : '#9ca3af',
+            }}
+          >
+            {loading ? 'Sending code…' : 'Find My Records'}
+          </button>
+        </div>
+      )}
+
+      {step === 'otp' && (
+        <div className="px-[20px] pb-[22px] pt-[10px] flex-shrink-0 border-t border-gray-100">
+          <button
+            onClick={handleVerify}
+            disabled={otp.length < 4 || loading}
+            className="w-full py-[13px] rounded-[14px] border-none font-bold text-[14.5px] cursor-pointer transition-all duration-200 disabled:cursor-not-allowed"
+            style={{
+              background: otp.length === 4 ? accent : '#e5e7eb',
+              color: otp.length === 4 ? 'white' : '#9ca3af',
+              boxShadow: otp.length === 4 ? `0 4px 16px ${accent}38` : 'none',
+            }}
+          >
+            {loading ? 'Verifying…' : 'Verify & View Records'}
+          </button>
+        </div>
+      )}
+
+      {step === 'found' && cancelStep === 'confirm' && (
+        <div className="px-[20px] pb-[22px] pt-[10px] flex-shrink-0 border-t border-gray-100 flex flex-col gap-[10px]">
+          <button
+            onClick={handleCancel}
+            disabled={loading}
+            className="w-full py-[14px] rounded-[14px] border-none bg-[#D93025] text-white font-bold text-[15px] cursor-pointer disabled:opacity-60"
+            style={{ boxShadow: '0 6px 20px rgba(217,48,37,0.28)', letterSpacing: '-0.01em' }}
+          >
+            {loading ? 'Cancelling…' : 'Yes, Cancel'}
+          </button>
+          <button
+            onClick={() => { setCancelStep('view'); setError(''); }}
+            className="w-full py-[13px] rounded-[14px] border border-gray-200 bg-white text-gray-700 font-semibold text-[14px] cursor-pointer"
+          >
+            Keep Appointment
+          </button>
+        </div>
+      )}
+
+      {step === 'found' && cancelStep === 'cancelled' && (
+        <div className="px-[20px] pb-[22px] pt-[10px] flex-shrink-0 border-t border-gray-100">
+          <button
+            onClick={handleClose}
+            className="w-full py-[14px] rounded-[14px] border-none text-white font-bold text-[15px] cursor-pointer"
+            style={{ background: accent, boxShadow: `0 6px 22px ${accent}42`, letterSpacing: '-0.01em' }}
+          >
+            Back to Booking
+          </button>
+        </div>
+      )}
+
     </BottomSheet>
   );
 }

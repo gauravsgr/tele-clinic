@@ -126,7 +126,7 @@ export default function BookingSheet({ open, onClose, onSubmit, slotISO = '', ac
         )}
       </div>
 
-      {/* ── Patient details form ── */}
+      {/* ── Patient details form — scrollable body ── */}
       <div className="px-[20px] pt-[18px] pb-[4px] overflow-y-auto flex-1">
         {/* Full Name */}
         <div className="mb-[14px]">
@@ -156,7 +156,7 @@ export default function BookingSheet({ open, onClose, onSubmit, slotISO = '', ac
         </div>
 
         {/* Reason — optional; passed to the doctor's appointment view */}
-        <div className="mb-[20px]">
+        <div className="mb-[4px]">
           <label className="text-[12px] font-semibold text-gray-700 block mb-[6px] tracking-[0.01em]">
             Reason for Visit <span className="text-gray-400 font-normal">(optional)</span>
           </label>
@@ -168,12 +168,16 @@ export default function BookingSheet({ open, onClose, onSubmit, slotISO = '', ac
             onChange={(e) => setReason(e.target.value)}
           />
         </div>
+      </div>
 
-        {/* Submit — triggers OTP flow, not direct booking */}
+      {/* ── Pinned footer — always visible at the bottom of the sheet ──
+          Sits outside the scroll area so it stays anchored regardless of how
+          much content (error messages, keyboard) the form body contains. */}
+      <div className="px-[20px] pb-[20px] pt-[10px] flex-shrink-0 border-t border-gray-100">
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-[14px] rounded-[14px] border-none text-white font-bold text-[15px] cursor-pointer mb-4 disabled:opacity-60"
+          className="w-full py-[14px] rounded-[14px] border-none text-white font-bold text-[15px] cursor-pointer disabled:opacity-60"
           style={{
             background: accent,
             boxShadow: `0 6px 20px ${accent}40`,
