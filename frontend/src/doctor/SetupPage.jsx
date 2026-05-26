@@ -92,6 +92,12 @@ export default function SetupPage({ doctorToken }) {
       setStatusMsg(msg ?? 'An error occurred.');
     });
 
+    // Connection-level errors — fires when the WhatsApp worker isn't running.
+    socket.on('connect_error', () => {
+      setStatus('error');
+      setStatusMsg('WhatsApp worker not running. Start it with: cd whatsapp-worker && node server.js');
+    });
+
     // Disconnect and clear the timer when navigating away from Setup.
     return () => {
       socket.disconnect();

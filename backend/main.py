@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import get_settings
-from database import init_db, close_db, get_db
+from database import init_db, close_db, get_db, seed_slots
 from services.scheduler import start_scheduler, reload_pending_jobs, shutdown_scheduler
 
 from routers import auth as auth_router
@@ -33,11 +33,15 @@ async def lifespan(app: FastAPI):
     # ── Startup ────────────────────────────────────────────────────────────
     await init_db()
 
+    # Seed/refresh the 28-day slot window on every startup.
+    # INSERT OR IGNORE keeps existing bookings untouched.
+    import database as _db_module
+    db = await _db_module.get_db()
+    await seed_slots(db)
+
     start_scheduler()  # start before reload so jobs can be registered
 
     # reload_pending_jobs needs the DB connection; init_db must run first
-    import database as _db_module
-    db = await _db_module.get_db()
     await reload_pending_jobs(db)
 
     yield

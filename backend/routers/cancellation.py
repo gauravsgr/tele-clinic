@@ -31,15 +31,22 @@ def _now_ist() -> datetime:
 
 
 async def _require_doctor(
-    x_doctor_token: Optional[str] = Header(None, alias="X-Doctor-Token"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> str:
-    if not x_doctor_token:
+    """FastAPI dependency: validate doctor session token, return phone.
+
+    Expects: Authorization: Bearer <session_token>
+    """
+    token: Optional[str] = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+    if not token:
         raise HTTPException(
             status_code=401,
-            detail={"error": "auth_required", "message": "Missing X-Doctor-Token."},
+            detail={"error": "auth_required", "message": "Missing Authorization header."},
         )
     try:
-        phone = verify_session_token(x_doctor_token, "doctor")
+        phone = verify_session_token(token, "doctor")
     except ValueError as exc:
         code = str(exc)
         raise HTTPException(

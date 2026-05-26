@@ -26,15 +26,22 @@ _csrf_states: set[str] = set()
 
 
 async def _require_doctor(
-    x_doctor_token: Optional[str] = Header(None, alias="X-Doctor-Token"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> str:
-    if not x_doctor_token:
+    """FastAPI dependency: validate doctor session token, return phone.
+
+    Expects: Authorization: Bearer <session_token>
+    """
+    token: Optional[str] = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+    if not token:
         raise HTTPException(
             status_code=401,
-            detail={"error": "auth_required", "message": "Missing X-Doctor-Token."},
+            detail={"error": "auth_required", "message": "Missing Authorization header."},
         )
     try:
-        phone = verify_session_token(x_doctor_token, "doctor")
+        phone = verify_session_token(token, "doctor")
     except ValueError as exc:
         code = str(exc)
         raise HTTPException(
@@ -111,7 +118,11 @@ async def google_auth(_phone: str = Depends(_require_doctor)):
             state=state,
             prompt="consent",
         )
-        return RedirectResponse(url=auth_url)
+        # Return the URL as JSON so the frontend can do window.location.href = auth_url.
+        # A server-side redirect won't work here because the browser's fetch() follows
+        # the 307 internally (CORS-opaque) and the frontend never gets a chance to navigate.
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"auth_url": auth_url})
     except Exception as exc:
         raise HTTPException(
             status_code=500,

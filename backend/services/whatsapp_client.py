@@ -78,7 +78,9 @@ async def send_message(to: str, message: str, *, retries: int = 3) -> bool:
                  "sent_at": datetime.now(_IST).isoformat()}
         with _MOCK_LOG.open("a") as f:
             f.write(json.dumps(entry) + "\n")
-        logger.info("MOCK WhatsApp → %s: %s", to, message[:60])
+        # print() instead of logger.info() so the message always appears on
+        # stdout regardless of uvicorn's logging configuration.
+        print(f"[MOCK WhatsApp] → {to}: {message[:80]}", flush=True)
         return True
 
     url = f"{settings.whatsapp_worker_url}/send-message"

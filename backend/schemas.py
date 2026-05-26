@@ -52,7 +52,7 @@ class AppointmentOut(BaseModel):
 
 class BookRequest(BaseModel):
     slot_id: str
-    otp_token: str          # 4-digit OTP code
+    otp_token: str          # session_token returned by POST /otp/verify
     patient_name: str
     phone: str              # E.164 pure digits
     reason: Optional[str] = None

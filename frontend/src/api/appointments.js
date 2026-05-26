@@ -69,7 +69,7 @@ export async function bookSlot(slotId, otpToken, name, phone, reason = '') {
   updateActivity();
   return apiFetch('/book', {
     method: 'POST',
-    body: JSON.stringify({ slot_id: slotId, otp_token: otpToken, name, phone, reason }),
+    body: JSON.stringify({ slot_id: slotId, otp_token: otpToken, patient_name: name, phone, reason }),
   });
 }
 

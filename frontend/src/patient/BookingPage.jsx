@@ -126,7 +126,8 @@ export default function BookingPage() {
     try {
       const data = await getSlots(from, to);
       const map = {};
-      (data.slots ?? []).forEach((s) => { map[s.slot_time] = s.status; });
+      // GET /slots returns a bare array — not wrapped in { slots: [...] }
+      (Array.isArray(data) ? data : []).forEach((s) => { map[s.slot_time] = s.status; });
       setSlotStatusMap(map);
     } catch {
       // fail silently — show whatever we have
@@ -182,7 +183,7 @@ export default function BookingPage() {
     // backend. If the patient already has a booking for this IST calendar date,
     // the backend returns 409 { code: 'duplicate_date', existing_datetime: ... }.
     try {
-      await sendOTP(phone, 'patient_booking');
+      await sendOTP(phone, 'booking');
     } catch (err) {
       if (err.code === 'duplicate_date') {
         setExistingSlot({ dateTime: err.existing_datetime ?? 'your existing appointment' });
@@ -494,7 +495,7 @@ export default function BookingPage() {
             onClose={() => setOtpOpen(false)}
             onVerified={handleOTPVerified}
             phone={pendingBooking?.phone ?? ''}
-            purpose="patient_booking"
+            purpose="booking"
             accent={accent}
           />
 

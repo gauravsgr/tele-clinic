@@ -47,6 +47,9 @@ async def generate_otp(phone: str, purpose: str, db: aiosqlite.Connection) -> tu
 
     Invalidates (marks used) all previous OTPs for the same phone+purpose.
     Returns (code, expires_at_iso).
+
+    Mock mode: always returns '0000' so developers can log in without
+    checking log files or the mock-messages.jsonl spool.
     """
     settings = get_settings()
     now = _now_ist()
@@ -58,7 +61,9 @@ async def generate_otp(phone: str, purpose: str, db: aiosqlite.Connection) -> tu
         (phone, purpose),
     )
 
-    code = _generate_code()
+    # In mock mode use a fixed well-known code so developers never need to
+    # check log files.  In real mode generate a cryptographically random code.
+    code = "0000" if settings.whatsapp_mode == "mock" else _generate_code()
     token_id = str(uuid.uuid4())
     await db.execute(
         """INSERT INTO otp_tokens (id, phone, code, purpose, expires_at, used, created_at)

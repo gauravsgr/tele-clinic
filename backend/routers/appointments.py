@@ -45,16 +45,22 @@ def _parse_ist(dt_str: str) -> datetime:
 
 
 async def _require_session(
-    x_session_token: Optional[str] = Header(None, alias="X-Session-Token"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> str:
-    """FastAPI dependency: validate patient session token, return phone."""
-    if not x_session_token:
+    """FastAPI dependency: validate patient session token, return phone.
+
+    Expects: Authorization: Bearer <session_token>
+    """
+    token: Optional[str] = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+    if not token:
         raise HTTPException(
             status_code=401,
-            detail={"error": "auth_required", "message": "Missing X-Session-Token header."},
+            detail={"error": "auth_required", "message": "Missing Authorization header."},
         )
     try:
-        phone = otp_service.verify_session_token(x_session_token, "patient")
+        phone = otp_service.verify_session_token(token, "patient")
     except ValueError as exc:
         code = str(exc)
         status = 401 if code == "auth_required" else 403
@@ -180,14 +186,18 @@ async def post_book(body: BookRequest, db: aiosqlite.Connection = Depends(get_db
             detail={"error": "hold_expired", "message": "Your reservation window has closed. Please select a new slot."},
         )
 
-    # Verify OTP
+    # Verify the patient session token issued by /otp/verify.
+    # The frontend sends the session token (not the raw OTP code) here;
+    # the OTP itself was already consumed by POST /otp/verify.
     try:
-        await otp_service.verify_otp(body.phone, body.otp_token, "booking", db)
+        session_phone = otp_service.verify_session_token(body.otp_token, "patient")
+        if session_phone != body.phone:
+            raise ValueError("phone_mismatch")
     except ValueError as exc:
         code = str(exc)
         raise HTTPException(
             status_code=400,
-            detail={"error": code, "message": f"OTP error: {code}"},
+            detail={"error": code, "message": f"Auth error: {code}"},
         )
 
     # Confirm booking in IMMEDIATE transaction

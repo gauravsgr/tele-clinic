@@ -110,7 +110,7 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
         setLastVisit(data.last_visit ?? null);
         setStep('found');
       } else {
-        await sendOTP(e164, 'patient_lookup');
+        await sendOTP(e164, 'lookup');
         setCdKey((k) => k + 1);
         setStep('otp');
       }
@@ -127,7 +127,7 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
     setError('');
     try {
       const e164 = toE164(phone);
-      const result = await verifyOTP(e164, otp, 'patient_lookup');
+      const result = await verifyOTP(e164, otp, 'lookup');
       const tok = result.session_token ?? '';
       setSession({ phone: e164, sessionToken: tok });
       setSessionToken(tok);
@@ -147,7 +147,7 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
     setLoading(true);
     setError('');
     try {
-      await sendOTP(toE164(phone), 'patient_lookup');
+      await sendOTP(toE164(phone), 'lookup');
       setResent(true);
       setOtp('');
       setCdKey((k) => k + 1);

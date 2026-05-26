@@ -2,8 +2,8 @@
  * OTPSheet — Universal OTP verification bottom sheet.
  *
  * Used for:
- *   - Booking confirmation (purpose='patient_booking')
- *   - Appointment lookup (purpose='patient_lookup')
+ *   - Booking confirmation (purpose='booking')
+ *   - Appointment lookup (purpose='lookup')
  *   - Cancel-and-rebook (same as booking)
  *
  * Props:
@@ -45,7 +45,7 @@ function WAIcon({ size = 13 }) {
   );
 }
 
-export default function OTPSheet({ open, onClose, onVerified, phone = '', purpose = 'patient_booking', accent = '#2563eb' }) {
+export default function OTPSheet({ open, onClose, onVerified, phone = '', purpose = 'booking', accent = '#2563eb' }) {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
