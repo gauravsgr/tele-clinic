@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeleClinic — Schedule</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: radial-gradient(ellipse at 28% 10%, #bfdbfe 0%, #dde8fd 35%, #e8f0fe 68%, #f5f3ff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+
+    @media (max-height: 920px) {
+      body { align-items: flex-start; padding-top: 20px; }
+      .phone-wrap { transform: scale(0.88); transform-origin: center top; }
+    }
+    @media (max-height: 780px) {
+      .phone-wrap { transform: scale(0.76); transform-origin: center top; }
+    }
+
+    .no-scroll::-webkit-scrollbar { display: none; }
+    .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .phone-wrap {
+      filter: drop-shadow(0 48px 96px rgba(0,0,0,0.22)) drop-shadow(0 0 0 1px rgba(0,0,0,0.55));
+    }
+
+    .phone-body {
+      width: 393px;
+      background: linear-gradient(170deg, #2d2d2f 0%, #191919 100%);
+      border-radius: 55px;
+      padding: 14px;
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.11);
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 812px;
+      background: white;
+      border-radius: 42px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 35px;
+      background: #000;
+      border-radius: 22px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .side-btn {
+      position: absolute;
+      width: 3px;
+      background: #363638;
+      border-radius: 2px;
+    }
+
+    /* Slot buttons */
+    .slot-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      border-radius: 9999px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+      outline: none;
+    }
+    .slot-btn:active:not(:disabled) { transform: scale(0.93); }
+    .slot-btn:disabled { cursor: not-allowed; }
+
+    /* Tweaks panel */
+    .tweaks-panel {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      width: 240px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.07);
+      z-index: 999;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* Bottom sheet */
+    .sheet-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0);
+      transition: background 0.35s ease;
+      z-index: 30;
+      pointer-events: none;
+      border-radius: 42px;
+    }
+    .sheet-overlay.open {
+      background: rgba(0,0,0,0.45);
+      pointer-events: all;
+    }
+    .sheet-panel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 28px 28px 42px 42px;
+      padding: 0 0 24px;
+      transform: translateY(100%);
+      transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+      z-index: 31;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
+    }
+    .sheet-panel.open {
+      transform: translateY(0);
+    }
+
+    /* Inputs */
+    .tc-input {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: #111827;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      background: #fafafa;
+    }
+    .tc-input:focus {
+      border-color: var(--accent, #2563eb);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 15%, transparent);
+      background: white;
+    }
+    .tc-input::placeholder { color: #9ca3af; }
+
+    /* Success screen checkmark */
+    @keyframes draw-check {
+      from { stroke-dashoffset: 80; }
+      to   { stroke-dashoffset: 0; }
+    }
+    @keyframes pop-circle {
+      0%   { transform: scale(0.6); opacity: 0; }
+      60%  { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .check-circle {
+      animation: pop-circle 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+    .check-path {
+      stroke-dasharray: 80;
+      stroke-dashoffset: 80;
+      animation: draw-check 0.45s 0.3s ease forwards;
+    }
+    .fade-up-1 { animation: fade-up 0.4s 0.55s ease both; }
+    .fade-up-2 { animation: fade-up 0.4s 0.7s  ease both; }
+    .fade-up-3 { animation: fade-up 0.4s 0.85s ease both; }
+    .fade-up-4 { animation: fade-up 0.4s 1.0s  ease both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+
+
+
+
+
+
+
+
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#2563eb",
+  "doctorName": "Dr. Lakshimi Sagar",
+  "sessionLength": "15 min",
+  "simulateDuplicate": true
+} /*EDITMODE-END*/;
+
+// Mon=disabled, Tue=active, Wed=active, Thu=disabled, Fri=disabled, Sat=active, Sun=active
+const DATES = [
+{ day: 'Mon', date: '18', disabled: true },
+{ day: 'Tue', date: '19', disabled: false },
+{ day: 'Wed', date: '20', disabled: false },
+{ day: 'Thu', date: '21', disabled: true },
+{ day: 'Fri', date: '22', disabled: true },
+{ day: 'Sat', date: '23', disabled: false },
+{ day: 'Sun', date: '24', disabled: false }];
+
+
+// Morning: 10:00 AM – 11:45 AM (8 slots × 15 min)
+const MORNING = ['10:00 AM', '10:15 AM', '10:30 AM', '10:45 AM', '11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM'];
+// Evening: 4:00 PM – 6:45 PM (12 slots × 15 min)
+const EVENING = ['4:00 PM', '4:15 PM', '4:30 PM', '4:45 PM', '5:00 PM', '5:15 PM', '5:30 PM', '5:45 PM', '6:00 PM', '6:15 PM', '6:30 PM', '6:45 PM'];
+
+// Taken slots per active day index (Tue=0, Wed=1, Sat=2, Sun=3)
+const TAKEN_MAP = {
+  1: new Set(['10:15 AM', '10:45 AM', '11:30 AM', '4:15 PM', '5:00 PM', '6:00 PM']),
+  2: new Set(['10:00 AM', '11:00 AM', '11:45 AM', '4:30 PM', '5:15 PM', '6:30 PM']),
+  5: new Set(['10:30 AM', '11:15 AM', '4:00 PM', '4:45 PM', '5:30 PM', '6:15 PM']),
+  6: new Set(['10:00 AM', '10:45 AM', '11:30 AM', '4:15 PM', '5:45 PM', '6:45 PM'])
+};
+
+function StatusIcons() {
+  return (
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="#111">
+        <rect x="0" y="6" width="3" height="6" rx="0.8" />
+        <rect x="4.5" y="4" width="3" height="8" rx="0.8" />
+        <rect x="9" y="2" width="3" height="10" rx="0.8" />
+        <rect x="13.5" y="0" width="3" height="12" rx="0.8" opacity="0.3" />
+      </svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <circle cx="8" cy="10.5" r="1.5" fill="#111" />
+        <path d="M3 7.2C4.5 5.8 6.2 5 8 5s3.5.8 5 2.2" stroke="#111" strokeWidth="1.4" strokeLinecap="round" />
+        <path d="M0.5 4.2C2.6 2.1 5.1 1 8 1s5.4 1.1 7.5 3.2" stroke="#111" strokeWidth="1.4" strokeLinecap="round" opacity="0.35" />
+      </svg>
+      <div style={{ position: 'relative', width: 25, height: 12 }}>
+        <div style={{ position: 'absolute', inset: 0, width: 22, height: 12, border: '1.5px solid rgba(0,0,0,0.6)', borderRadius: 3 }} />
+        <div style={{ position: 'absolute', right: -2.5, top: 3.5, width: 2.5, height: 5, background: 'rgba(0,0,0,0.6)', borderRadius: '0 2px 2px 0' }} />
+        <div style={{ position: 'absolute', left: 2, top: 2, width: 13, height: 8, background: '#111', borderRadius: 1.5 }} />
+      </div>
+    </div>);
+
+}
+
+function TweaksPanel({ tweaks, onUpdate, onClose }) {
+  const PALETTE = [
+  { color: '#2563eb', name: 'Blue' },
+  { color: '#0891b2', name: 'Cyan' },
+  { color: '#7c3aed', name: 'Purple' },
+  { color: '#059669', name: 'Green' },
+  { color: '#e11d48', name: 'Rose' }];
+
+  const SESSIONS = ['15 min', '30 min', '45 min', '60 min'];
+
+  return (
+    <div className="tweaks-panel">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>Tweaks</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#9ca3af', lineHeight: 1, padding: 0 }}>×</button>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 9, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Accent Color</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {PALETTE.map(({ color, name }) =>
+          <button key={color} title={name} onClick={() => onUpdate('accentColor', color)} style={{
+            width: 28, height: 28, borderRadius: '50%', background: color,
+            border: '2.5px solid white', cursor: 'pointer', padding: 0,
+            outline: tweaks.accentColor === color ? `2.5px solid ${color}` : '2.5px solid transparent',
+            outlineOffset: 1,
+            transition: 'transform 0.1s'
+          }} />
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 9, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Session Length</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {SESSIONS.map((s) =>
+          <button key={s} onClick={() => onUpdate('sessionLength', s)} style={{
+            padding: '5px 11px', borderRadius: 9,
+            border: `1.5px solid ${tweaks.sessionLength === s ? tweaks.accentColor : '#e5e7eb'}`,
+            background: tweaks.sessionLength === s ? tweaks.accentColor + '1a' : 'white',
+            color: tweaks.sessionLength === s ? tweaks.accentColor : '#6b7280',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'all 0.15s'
+          }}>{s}</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', marginBottom: 9, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Simulate State</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12.5, color: '#374151', fontWeight: 500 }}>Duplicate Booking Alert</span>
+          <button onClick={() => onUpdate('simulateDuplicate', !tweaks.simulateDuplicate)} style={{
+            width: 40, height: 22, borderRadius: 99, border: 'none', cursor: 'pointer', padding: 2,
+            background: tweaks.simulateDuplicate ? '#f59e0b' : '#e5e7eb',
+            transition: 'background 0.2s', position: 'relative', flexShrink: 0
+          }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%', background: 'white',
+              position: 'absolute', top: 2,
+              left: tweaks.simulateDuplicate ? 20 : 2,
+              transition: 'left 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+            }} />
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+          Tap "Confirm" to preview the alert sheet
+        </div>
+      </div>
+    </div>);
+
+}
+
+/* ── Duplicate Booking Alert Sheet ── */
+function DuplicateAlertSheet({ open, onClose, onRebook, accent, date }) {
+  const dateLabel = date ? `${date.day} ${date.date} May` : 'this day';
+  const [cancelStep, setCancelStep] = React.useState('view');
+  const [countdown, setCountdown] = React.useState(0);
+
+  // Auto-advance to booking confirmation after cancelled
+  React.useEffect(() => {
+    if (cancelStep !== 'cancelled') return;
+    setCountdown(0);
+    const start = Date.now();
+    const total = 2000;
+    const tick = setInterval(() => {
+      const pct = Math.min((Date.now() - start) / total, 1);
+      setCountdown(pct);
+      if (pct >= 1) {
+        clearInterval(tick);
+        onClose();
+        setTimeout(() => { onRebook && onRebook(); }, 300);
+      }
+    }, 30);
+    return () => clearInterval(tick);
+  }, [cancelStep]);
+
+  const handleClose = () => {
+    onClose();
+    setTimeout(() => setCancelStep('view'), 420);
+  };
+
+  return (
+    <>
+      <div className={`sheet-overlay ${open ? 'open' : ''}`} onClick={handleClose} />
+      <div className={`sheet-panel ${open ? 'open' : ''}`}>
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 6px' }}>
+          <div style={{ width: 48, height: 4, background: '#e2e8f0', borderRadius: 99 }} />
+        </div>
+
+        <div style={{ padding: '8px 24px 32px' }}>
+
+          {/* ── View: Duplicate warning ── */}
+          {cancelStep === 'view' && <>
+            {/* Amber warning icon */}
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px auto 16px' }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L21.5 20H2.5L12 3Z" stroke="#f59e0b" strokeWidth="1.8" strokeLinejoin="round" fill="#fef3c7"/>
+                <path d="M12 9v5" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="17" r="1" fill="#f59e0b"/>
+              </svg>
+            </div>
+
+            {/* Title */}
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', textAlign: 'center', marginBottom: 12 }}>One Appointment per Day</div>
+
+            {/* Body copy */}
+            <p style={{ fontSize: 13.5, color: '#64748b', lineHeight: 1.7, textAlign: 'center', marginBottom: 28 }}>
+              You already have an appointment scheduled for{' '}
+              <strong style={{ color: '#1e293b' }}>Monday, May 18 at 10:15 AM</strong>. We limit scheduling to one appointment per day.
+            </p>
+
+            {/* Primary: Keep */}
+            <button onClick={handleClose} style={{
+              width: '100%', height: 48, borderRadius: 16, border: 'none',
+              fontFamily: 'DM Sans, sans-serif', background: '#0f172a', color: 'white',
+              fontWeight: 600, fontSize: 15, cursor: 'pointer', marginBottom: 12,
+              letterSpacing: '-0.01em', userSelect: 'none',
+              boxShadow: '0 4px 18px rgba(15,23,42,0.22)',
+              transition: 'transform 0.1s',
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform='scale(.98)'}
+            onMouseUp={(e) => e.currentTarget.style.transform=''}
+            onMouseLeave={(e) => e.currentTarget.style.transform=''}>
+              Keep Existing Appointment
+            </button>
+
+            {/* Secondary: Cancel existing & rebook */}
+            <button onClick={() => setCancelStep('confirm')} style={{
+              width: '100%', height: 48, borderRadius: 16, border: '1.5px solid #e2e8f0',
+              fontFamily: 'DM Sans, sans-serif', background: 'white', color: '#e11d48',
+              fontWeight: 600, fontSize: 14.5, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              userSelect: 'none', transition: 'background 0.15s',
+              letterSpacing: '-0.01em',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background='#fff1f2'}
+            onMouseLeave={(e) => e.currentTarget.style.background='white'}>
+              Cancel Existing &amp; Rebook
+            </button>
+          </>}
+
+          {/* ── Confirm cancel ── */}
+          {cancelStep === 'confirm' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="#D93025" strokeWidth="1.8"/>
+                  <path d="M12 7v5M12 16v.5" stroke="#D93025" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', letterSpacing: '-0.025em', marginBottom: 10, textAlign: 'center' }}>Cancel Appointment?</div>
+              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.65, textAlign: 'center', marginBottom: 22 }}>
+                Are you sure you want to cancel your appointment with{' '}
+                <strong style={{ color: '#374151' }}>Dr. Lakshimi Sagar</strong> on{' '}
+                <strong style={{ color: '#374151' }}>Saturday, May 23 at 10:15 AM</strong>?
+              </p>
+              <button onClick={() => setCancelStep('cancelled')} style={{
+                width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                background: '#D93025', color: 'white', fontFamily: 'DM Sans, sans-serif',
+                fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10,
+                boxShadow: '0 6px 20px rgba(217,48,37,0.28)', letterSpacing: '-0.01em',
+                userSelect: 'none', transition: 'transform 0.1s',
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform='scale(.98)'}
+              onMouseUp={(e) => e.currentTarget.style.transform=''}
+              onMouseLeave={(e) => e.currentTarget.style.transform=''}>
+                Yes, Cancel
+              </button>
+              <button onClick={() => setCancelStep('view')} style={{
+                width: '100%', padding: '13px', borderRadius: 14, border: '1.5px solid #e5e7eb',
+                background: 'white', color: '#374151', fontFamily: 'DM Sans, sans-serif',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
+              }}>Keep Appointment</button>
+            </div>
+          )}
+
+          {/* ── Cancelled: auto-booking ── */}
+          {cancelStep === 'cancelled' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {/* Animated ring */}
+              <div style={{ position: 'relative', width: 72, height: 72, marginBottom: 18 }}>
+                <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#f1f5f9" strokeWidth="5"/>
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#22c55e" strokeWidth="5"
+                    strokeDasharray={`${2 * Math.PI * 30}`}
+                    strokeDashoffset={`${2 * Math.PI * 30 * (1 - countdown)}`}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.03s linear' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <path d="M5 14l7 7 11-11" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', letterSpacing: '-0.025em', marginBottom: 8, textAlign: 'center' }}>Slot Cancelled</div>
+              <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.65, textAlign: 'center', marginBottom: 20 }}>
+                Booking your new appointment automatically…
+              </p>
+              {/* Progress bar */}
+              <div style={{ width: '100%', height: 4, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: '#22c55e', borderRadius: 99, width: `${countdown * 100}%`, transition: 'width 0.03s linear' }} />
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </>);
+}
+
+/* ── Lookup Sheet ── */
+function LookupSheet({ open, onClose, accent }) {
+  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'found'
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [resent, setResent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [cancelStep, setCancelStep] = useState('view'); // 'view' | 'confirm' | 'cancelled'
+  const otpRefs = [React.useRef(), React.useRef(), React.useRef(), React.useRef()];
+
+  const onSheetClose = () => {
+    onClose();
+    setTimeout(() => {setPhone('');setStep('phone');setOtp(['', '', '', '']);setResent(false);setCancelStep('view');}, 420);
+  };
+
+  const onFind = () => {
+    if (phone.length < 10) return;
+    setLoading(true);
+    setTimeout(() => {setLoading(false);setStep('otp');}, 800);
+  };
+
+  const onOtpChange = (i, val) => {
+    const d = val.replace(/\D/, '').slice(-1);
+    const next = [...otp];next[i] = d;setOtp(next);
+    if (d && i < 3) otpRefs[i + 1].current?.focus();
+  };
+
+  const onOtpKey = (i, e) => {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs[i - 1].current?.focus();
+  };
+
+  const otpFilled = otp.every((d) => d !== '');
+
+  const onVerify = () => {
+    if (!otpFilled) return;
+    setLoading(true);
+    setTimeout(() => {setLoading(false);setStep('found');}, 900);
+  };
+
+  const onResend = () => {
+    setOtp(['', '', '', '']);setResent(true);
+    otpRefs[0].current?.focus();
+    setTimeout(() => setResent(false), 3000);
+  };
+
+  return (
+    <>
+      <div className={`sheet-overlay ${open ? 'open' : ''}`} onClick={onSheetClose} />
+      <div className={`sheet-panel ${open ? 'open' : ''}`}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+          <div style={{ width: 40, height: 4, background: '#e5e7eb', borderRadius: 99 }} />
+        </div>
+
+        <div style={{ padding: '8px 20px 22px' }}>
+
+          {/* ── Step 1: Phone entry ── */}
+          {step === 'phone' &&
+          <>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', marginBottom: 3 }}>Appointment Lookup</div>
+              <div style={{ fontSize: 12.5, color: '#9ca3af', marginBottom: 18 }}>Enter the number used for appointment</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px', background: '#f3f4f6', borderRadius: 14, border: '1.5px solid #e5e7eb', flexShrink: 0 }}>
+                  <span style={{ fontSize: 16 }}>🇮🇳</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#374151' }}>+91</span>
+                </div>
+                <input className="tc-input" style={{ '--accent': accent }} type="tel" placeholder="98765 43210"
+              value={phone} maxLength={10}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/, ''))} />
+              </div>
+              <button onClick={onFind} style={{
+              width: '100%', padding: '13px', borderRadius: 14, border: 'none',
+              fontFamily: 'DM Sans, sans-serif',
+              background: phone.length >= 10 ? accent : '#e5e7eb',
+              color: phone.length >= 10 ? 'white' : '#9ca3af',
+              fontWeight: 700, fontSize: 14.5,
+              cursor: phone.length >= 10 ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s'
+            }}>
+                {loading ? 'Sending code…' : 'Find My Records'}
+              </button>
+            </>
+          }
+
+          {/* ── Step 2: OTP entry ── */}
+          {step === 'otp' &&
+          <>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                    <rect x="3" y="7" width="11" height="8.5" rx="2" stroke={accent} strokeWidth="1.4" />
+                    <path d="M5.5 7V5a3 3 0 0 1 6 0v2" stroke={accent} strokeWidth="1.4" strokeLinecap="round" />
+                    <circle cx="8.5" cy="11" r="1.1" fill={accent} />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Verify your identity</div>
+                  <div style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 1 }}>+91 {phone.replace(/(\d{5})(\d{5})/, '$1 $2')}</div>
+                </div>
+              </div>
+
+              {/* Instruction */}
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '11px 13px', marginBottom: 20, display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                <svg width="17" height="17" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <rect x="1" y="2" width="16" height="12" rx="3" stroke="#16a34a" strokeWidth="1.4" />
+                  <path d="M4 6h10M4 9h7" stroke="#16a34a" strokeWidth="1.4" strokeLinecap="round" />
+                  <path d="M7 14l2 3 2-3" stroke="#16a34a" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.7, margin: 0 }}>
+                  We sent a <strong>4-digit verification code</strong> to your WhatsApp number. Enter it below to securely view your records.
+                </p>
+              </div>
+
+              {/* 4-box OTP input */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 20 }}>
+                {otp.map((digit, i) =>
+              <input
+                key={i}
+                ref={otpRefs[i]}
+                type="tel"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => onOtpChange(i, e.target.value)}
+                onKeyDown={(e) => onOtpKey(i, e)}
+                style={{
+                  width: 52, height: 58,
+                  textAlign: 'center',
+                  fontSize: 24, fontWeight: 800,
+                  fontFamily: 'DM Sans, sans-serif',
+                  color: '#111827',
+                  border: `2px solid ${digit ? accent : '#e5e7eb'}`,
+                  borderRadius: 14,
+                  background: digit ? `${accent}08` : '#fafafa',
+                  outline: 'none',
+                  transition: 'border-color 0.15s, background 0.15s',
+                  caretColor: accent
+                }}
+                onFocus={(e) => e.target.style.borderColor = accent}
+                onBlur={(e) => e.target.style.borderColor = digit ? accent : '#e5e7eb'} />
+
+              )}
+              </div>
+
+              {/* Verify button */}
+              <button onClick={onVerify} style={{
+              width: '100%', padding: '13px', borderRadius: 14, border: 'none',
+              fontFamily: 'DM Sans, sans-serif',
+              background: otpFilled ? accent : '#e5e7eb',
+              color: otpFilled ? 'white' : '#9ca3af',
+              fontWeight: 700, fontSize: 14.5,
+              cursor: otpFilled ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s', marginBottom: 12,
+              boxShadow: otpFilled ? `0 4px 16px ${accent}38` : 'none'
+            }}>
+                {loading ? 'Verifying…' : 'Verify & View Records'}
+              </button>
+
+              {/* Resend link */}
+              <div style={{ textAlign: 'center', paddingBottom: 24 }}>
+                <button onClick={onResend} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+                fontSize: 11, fontWeight: 600,
+                color: resent ? '#22c55e' : '#4f46e5',
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                transition: 'color 0.2s, opacity 0.2s', padding: '8px 16px',
+                opacity: resent ? 1 : 0.85
+              }}>
+                  {resent ? '✓ Code resent to WhatsApp' : 'Resend Code'}
+                </button>
+              </div>
+            </>
+          }
+
+          {/* ── Step 3: Results ── */}
+          {step === 'found' &&
+          <>
+            {/* ── Step 3a: View appointments ── */}
+            {cancelStep === 'view' && <>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', marginBottom: 3 }}>Your Appointments</div>
+              <div style={{ fontSize: 12.5, color: '#9ca3af', marginBottom: 16 }}>Verified · +91 {phone.replace(/(\d{5})(\d{5})/, '$1 $2')}</div>
+              <div style={{ background: '#f9fafb', borderRadius: 16, overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Upcoming Session</span>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#dcfce7', borderRadius: 99, padding: '3px 9px' }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#16a34a' }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>Confirmed</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#111827', lineHeight: 1.4, marginBottom: 10 }}>Saturday, May 23 at 10:15 AM</div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button onClick={() => setCancelStep('confirm')} style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: '10px 4px',
+                      fontFamily: 'DM Sans, sans-serif', fontSize: 13, fontWeight: 500,
+                      color: '#D93025', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center',
+                      userSelect: 'none'
+                    }}>Cancel Appointment</button>
+                  </div>
+                </div>
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#d1d5db', flexShrink: 0 }} />
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Last Completed Visit</span>
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#374151' }}>Tuesday, May 12 at 4:30 PM</div>
+                </div>
+              </div>
+            </>}
+
+            {/* ── Step 3b: Confirm cancellation ── */}
+            {cancelStep === 'confirm' &&
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px 0 8px' }}>
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#D93025" strokeWidth="1.8" /><path d="M12 7v5M12 16v.5" stroke="#D93025" strokeWidth="2" strokeLinecap="round" /></svg>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#111827', letterSpacing: '-0.025em', marginBottom: 10, textAlign: 'center' }}>Cancel Appointment?</div>
+                <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.65, textAlign: 'center', marginBottom: 22 }}>
+                  Are you sure you want to cancel your appointment with <strong style={{ color: '#374151' }}>Dr. Lakshimi Sagar</strong> on <strong style={{ color: '#374151' }}>Saturday, May 23 at 10:15 AM</strong>?
+                </div>
+                <button onClick={() => setCancelStep('cancelled')} style={{
+                width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                background: '#D93025', color: 'white', fontFamily: 'DM Sans, sans-serif',
+                fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10,
+                boxShadow: '0 6px 20px rgba(217,48,37,0.28)', letterSpacing: '-0.01em',
+                transition: 'transform 0.1s'
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(.98)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = ''}
+              onMouseLeave={(e) => e.currentTarget.style.transform = ''}>
+                  Yes, Cancel
+                </button>
+                <button onClick={() => setCancelStep('view')} style={{
+                width: '100%', padding: '13px', borderRadius: 14, border: '1.5px solid #e5e7eb',
+                background: 'white', color: '#374151', fontFamily: 'DM Sans, sans-serif',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer'
+              }}>Keep Appointment</button>
+              </div>
+            }
+
+            {/* ── Step 3c: Cancelled success ── */}
+            {cancelStep === 'cancelled' &&
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0 4px' }}>
+                <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, boxShadow: '0 4px 18px rgba(34,197,94,0.18)' }}>
+                  <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M7 18L14 25L27 10" stroke="#16a34a" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#111827', letterSpacing: '-0.025em', marginBottom: 10, textAlign: 'center' }}>Appointment Cancelled</div>
+                <div style={{ fontSize: 12.5, color: '#6b7280', lineHeight: 1.7, textAlign: 'center', marginBottom: 24 }}>
+                  Your appointment for <strong style={{ color: '#374151' }}>Saturday, May 23 at 10:15 AM</strong> has been cancelled successfully. A confirmation message has been sent to{' '}
+                  <strong style={{ color: accent }}>+91 {phone.replace(/(\d{5})(\d{5})/, '$1 $2') || '78978 44545'}</strong>.
+                </div>
+                <button onClick={onSheetClose} style={{
+                width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                background: accent, color: 'white', fontFamily: 'DM Sans, sans-serif',
+                fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                boxShadow: `0 6px 22px ${accent}42`, letterSpacing: '-0.01em'
+              }}>Back to Booking</button>
+              </div>
+            }
+          </>
+          }
+
+        </div>
+      </div>
+    </>);
+
+}
+
+/* ── Stethoscope icon ── */
+function StethoIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
+      <path d="M8 15a6 6 0 0 0 6 6h0a6 6 0 0 0 6-6v-3" />
+      <circle cx="20" cy="10" r="2" fill="#4f46e5" stroke="none" />
+    </svg>);
+}
+
+/* ── WhatsApp icon ── */
+function WAIcon({ size = 20, color = '#25D366' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="16" fill={color} />
+      <path d="M23.5 8.5A10.45 10.45 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15c0 1.64.43 3.22 1.25 4.62L6.5 26.5l7.08-1.86A10.44 10.44 0 0 0 16 25c5.25 0 9.5-4.25 9.5-10S21.75 5.5 16 5.5z" fill="white" opacity="0" />
+      <path fillRule="evenodd" clipRule="evenodd" d="M22.7 9.3A9.35 9.35 0 0 0 16 6.6c-5.19 0-9.4 4.21-9.4 9.4 0 1.66.44 3.28 1.27 4.7l-1.37 5 5.16-1.35a9.38 9.38 0 0 0 4.34 1.1c5.19 0 9.4-4.21 9.4-9.4 0-2.51-.98-4.87-2.7-6.65zm-6.7 14.45a7.8 7.8 0 0 1-3.97-1.08l-.28-.17-2.93.77.78-2.86-.19-.3a7.8 7.8 0 0 1-1.2-4.21c0-4.31 3.51-7.82 7.82-7.82 2.09 0 4.05.81 5.53 2.29a7.77 7.77 0 0 1 2.29 5.54c0 4.32-3.51 7.84-7.85 7.84zm4.29-5.86c-.23-.12-1.38-.68-1.6-.76-.21-.08-.37-.12-.52.12s-.6.76-.73.91c-.13.16-.27.18-.5.06-.23-.12-.97-.36-1.85-1.14a6.93 6.93 0 0 1-1.28-1.59c-.13-.23-.01-.35.1-.47.1-.1.23-.27.35-.4.12-.14.16-.23.24-.38.08-.16.04-.3-.02-.41-.06-.12-.52-1.26-.72-1.72-.19-.45-.38-.39-.52-.4h-.44c-.15 0-.4.06-.62.3-.21.23-.82.8-.82 1.96s.84 2.27.96 2.43c.12.16 1.66 2.53 4.02 3.55.56.24 1 .39 1.34.5.56.18 1.07.15 1.48.09.45-.07 1.38-.56 1.57-1.11.2-.54.2-1.01.14-1.11-.06-.1-.21-.16-.44-.28z" fill="white" />
+    </svg>);
+
+}
+
+/* ── Success Screen ── */
+function SuccessScreen({ accent, doctorName, sessionLength, date, time, name, onReset }) {
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 24px 0', overflow: 'hidden' }}>
+      {/* Checkmark */}
+      <div className="check-circle" style={{ width: 96, height: 96, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+          <path className="check-path" d="M10 27L22 39L42 15" stroke="#16a34a" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
+      {/* Heading */}
+      <div className="fade-up-1" style={{ textAlign: 'center', marginBottom: 6 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.03em', lineHeight: 1.2 }}>Appointment Confirmed!</div>
+      </div>
+
+      {/* Sub-label */}
+      <div className="fade-up-2" style={{ fontSize: 13.5, color: '#6b7280', textAlign: 'center', marginBottom: 22, lineHeight: 1.5 }}>
+        We've saved your slot with {doctorName}
+      </div>
+
+      {/* Booking card */}
+      <div className="fade-up-2" style={{ width: '100%', background: '#f9fafb', borderRadius: 18, padding: '16px 18px', marginBottom: 20, border: '1px solid #f3f4f6' }}>
+        {[
+        { icon: '👤', label: 'Patient', value: name },
+        { icon: '📅', label: 'Date', value: `${date.day} ${date.date} May 2026` },
+        { icon: '🕐', label: 'Time', value: time },
+        { icon: '⏱', label: 'Duration', value: sessionLength },
+        { icon: '👩‍⚕️', label: 'Doctor', value: doctorName }].
+        map(({ icon, label, value }) =>
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <span style={{ fontSize: 12.5, color: '#9ca3af', fontWeight: 500 }}>{icon} {label}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', maxWidth: '58%', textAlign: 'right' }}>{value}</span>
+          </div>
+        )}
+      </div>
+
+      {/* WhatsApp notice */}
+      <div className="fade-up-3" style={{ width: '100%', background: '#f0fdf4', borderRadius: 16, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 20, border: '1px solid #bbf7d0' }}>
+        <div style={{ flexShrink: 0, marginTop: 1 }}><WAIcon size={28} /></div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#15803d', marginBottom: 3 }}>No app downloads needed</div>
+          <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.55 }}>
+            The doctor will call you directly on WhatsApp video at your appointment time. Keep your phone nearby!
+          </div>
+        </div>
+      </div>
+
+      {/* Reset button */}
+      <div className="fade-up-4" style={{ width: '100%' }}>
+        <button onClick={onReset} style={{
+          width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+          fontFamily: 'DM Sans, sans-serif', background: accent, color: 'white',
+          fontWeight: 700, fontSize: 15, cursor: 'pointer',
+          boxShadow: `0 6px 22px ${accent}42`, letterSpacing: '-0.01em'
+        }}>
+          Book Another Appointment
+        </button>
+      </div>
+    </div>);
+
+}
+
+/* ── Universal OTP Gate Sheet ── */
+function OTPGateSheet({ open, onClose, onVerified, accent, phone }) {
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [countdown, setCd] = useState(59);
+  const [resent, setResent] = useState(false);
+  const [loading, setLoad] = useState(false);
+  const refs = [React.useRef(), React.useRef(), React.useRef(), React.useRef()];
+
+  // Countdown timer
+  React.useEffect(() => {
+    if (!open) return;
+    setCd(59);setOtp(['', '', '', '']);setResent(false);
+  }, [open]);
+  React.useEffect(() => {
+    if (!open || countdown <= 0) return;
+    const t = setTimeout(() => setCd((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [open, countdown]);
+
+  const onOtpChange = (i, val) => {
+    const d = val.replace(/\D/, '').slice(-1);
+    const next = [...otp];next[i] = d;setOtp(next);
+    if (d && i < 3) refs[i + 1].current?.focus();
+  };
+  const onOtpKey = (i, e) => {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) refs[i - 1].current?.focus();
+  };
+  const filled = otp.every((d) => d !== '');
+
+  const onVerify = () => {
+    if (!filled) return;
+    setLoad(true);
+    setTimeout(() => {setLoad(false);onVerified();}, 900);
+  };
+  const onResend = () => {
+    if (countdown > 0) return;
+    setOtp(['', '', '', '']);setResent(true);setCd(59);
+    refs[0].current?.focus();
+    setTimeout(() => setResent(false), 2800);
+  };
+
+  const maskedPhone = phone ?
+  `+91 ${phone.slice(0, 3)}${'•'.repeat(4)}${phone.slice(-3)}` :
+  '+91 ••••••••••';
+
+  return (
+    <>
+      <div className={`sheet-overlay ${open ? 'open' : ''}`} onClick={onClose} />
+      <div className={`sheet-panel ${open ? 'open' : ''}`}>
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0' }}>
+          <div style={{ width: 40, height: 4, background: '#e5e7eb', borderRadius: 99 }} />
+        </div>
+
+        <div style={{ padding: '16px 22px 26px' }}>
+          {/* Icon badge */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <div style={{ position: 'relative', width: 60, height: 60 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 18, background: `${accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                  <rect x="5" y="12" width="18" height="14" rx="3" stroke={accent} strokeWidth="2" />
+                  <path d="M9 12V9a5 5 0 0 1 10 0v3" stroke={accent} strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="14" cy="19" r="2" fill={accent} />
+                  <path d="M14 21v2" stroke={accent} strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div style={{ position: 'absolute', bottom: -4, right: -4, width: 22, height: 22, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                <WAIcon size={16} />
+              </div>
+            </div>
+          </div>
+
+          {/* Title + subtext */}
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', marginBottom: 6 }}>
+              Verify Your WhatsApp Number
+            </div>
+            <div style={{ fontSize: 12.5, color: '#6b7280', lineHeight: 1.6, maxWidth: 290, margin: '0 auto' }}>
+              We sent a <strong style={{ color: '#374151' }}>4-digit verification code</strong> via WhatsApp to{' '}
+              <span style={{ fontWeight: 700, color: accent }}>{maskedPhone}</span>. Enter it below to secure this request.
+            </div>
+          </div>
+
+          {/* 4 OTP boxes */}
+          <div style={{ display: 'flex', gap: 11, justifyContent: 'center', marginBottom: 22 }}>
+            {otp.map((digit, i) =>
+            <input
+              key={i}
+              ref={refs[i]}
+              type="tel"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => onOtpChange(i, e.target.value)}
+              onKeyDown={(e) => onOtpKey(i, e)}
+              placeholder="·"
+              style={{
+                width: 56, height: 64,
+                textAlign: 'center',
+                fontSize: 26, fontWeight: 800,
+                fontFamily: 'DM Sans, sans-serif',
+                color: '#111827',
+                border: `2.5px solid ${digit ? accent : '#cbd5e1'}`,
+                borderRadius: 16,
+                background: digit ? `${accent}0a` : '#fafafa',
+                outline: 'none',
+                transition: 'border-color 0.15s, background 0.15s, box-shadow 0.15s',
+                caretColor: '#4f46e5',
+                boxShadow: digit ? `0 0 0 3px ${accent}18` : 'none'
+              }}
+              onFocus={(e) => {e.target.style.borderColor = '#4f46e5';e.target.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.12)';}}
+              onBlur={(e) => {e.target.style.borderColor = digit ? accent : '#cbd5e1';e.target.style.boxShadow = digit ? `0 0 0 3px ${accent}18` : 'none';}} />
+
+            )}
+          </div>
+
+          {/* Verify button */}
+          <button onClick={onVerify} style={{
+            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+            fontFamily: 'DM Sans, sans-serif',
+            background: filled ? accent : '#e5e7eb',
+            color: filled ? 'white' : '#9ca3af',
+            fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em',
+            cursor: filled ? 'pointer' : 'not-allowed',
+            transition: 'all 0.2s', marginBottom: 13,
+            boxShadow: filled ? `0 6px 22px ${accent}40` : 'none'
+          }}>
+            {loading ? 'Verifying…' : 'Verify & Complete Action'}
+          </button>
+
+          {/* Resend row */}
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={onResend} disabled={countdown > 0} style={{
+              background: 'none', border: 'none', cursor: countdown > 0 ? 'default' : 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 12, fontWeight: 500,
+              color: resent ? '#22c55e' : countdown > 0 ? '#9ca3af' : accent,
+              transition: 'color 0.2s', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 5
+            }}>
+              {resent ?
+              <>✓ Code resent to WhatsApp</> :
+              countdown > 0 ?
+              <>
+                  <WAIcon size={13} />
+                  Didn't receive code? Resend via WhatsApp ({countdown}s)
+                </> :
+
+              <>
+                  <WAIcon size={13} />
+                  <span style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>Resend via WhatsApp</span>
+                </>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </>);
+
+}
+
+/* ── Bottom Sheet ── */
+function BookingSheet({ open, onClose, onSubmit, accent, date, time, doctorName, sessionLength }) {
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [errors, setErrors] = useState({});
+
+  const validate = () => {
+    const e = {};
+    if (!fullName.trim()) e.fullName = 'Please enter your full name';
+    if (!/^\d{10}$/.test(phone.replace(/\s/g, ''))) e.phone = 'Enter a valid 10-digit number';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validate()) onSubmit(fullName.trim(), phone.trim());
+  };
+
+  return (
+    <>
+      <div className={`sheet-overlay ${open ? 'open' : ''}`} onClick={onClose} />
+      <div className={`sheet-panel ${open ? 'open' : ''}`}>
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+          <div style={{ width: 40, height: 4, background: '#e5e7eb', borderRadius: 99 }} />
+        </div>
+
+        {/* Sheet header */}
+        <div style={{ padding: '8px 20px 14px', borderBottom: '1px solid #f3f4f6' }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Confirm your booking</div>
+          <div style={{ fontSize: 12.5, color: '#9ca3af', marginTop: 3 }}>
+            {date.day} {date.date} May · {time}
+          </div>
+        </div>
+
+        {/* Form */}
+        <div style={{ padding: '18px 20px 0' }}>
+          {/* Full Name */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6, letterSpacing: '0.01em' }}>
+              Full Name
+            </label>
+            <input
+              className="tc-input"
+              style={{ '--accent': accent }}
+              type="text"
+              placeholder="e.g. Priya Sharma"
+              value={fullName}
+              onChange={(e) => {setFullName(e.target.value);setErrors((v) => ({ ...v, fullName: null }));}} />
+            
+            {errors.fullName && <div style={{ fontSize: 11.5, color: '#ef4444', marginTop: 5 }}>{errors.fullName}</div>}
+          </div>
+
+          {/* WhatsApp Number */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6, letterSpacing: '0.01em' }}>
+              WhatsApp Number
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '13px 13px', background: '#f3f4f6', borderRadius: 14,
+                border: '1.5px solid #e5e7eb', flexShrink: 0
+              }}>
+                <span style={{ fontSize: 16 }}>🇮🇳</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: '#374151' }}>+91</span>
+              </div>
+              <input
+                className="tc-input"
+                style={{ '--accent': accent }}
+                type="tel"
+                placeholder="98765 43210"
+                value={phone}
+                maxLength={10}
+                onChange={(e) => {setPhone(e.target.value.replace(/\D/g, ''));setErrors((v) => ({ ...v, phone: null }));}} />
+              
+            </div>
+            {errors.phone && <div style={{ fontSize: 11.5, color: '#ef4444', marginTop: 5 }}>{errors.phone}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
+              <WAIcon size={14} />
+              <span style={{ fontSize: 11.5, color: '#6b7280' }}>Doctor will call you on this number</span>
+            </div>
+          </div>
+
+          {/* Reason for Visit */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6, letterSpacing: '0.01em' }}>
+              Reason for Visit <span style={{ fontWeight: 400, color: '#9ca3af' }}>(Optional)</span>
+            </label>
+            <input
+              className="tc-input"
+              style={{ '--accent': accent }}
+              type="text"
+              placeholder="e.g., Fever, follow-up, prescription renewal..." />
+            
+          </div>
+
+          {/* Submit */}
+          <button onClick={handleSubmit} style={{
+            width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+            fontFamily: 'DM Sans, sans-serif', background: accent, color: 'white',
+            fontWeight: 700, fontSize: 15, cursor: 'pointer',
+            boxShadow: `0 6px 20px ${accent}40`, letterSpacing: '-0.01em', marginBottom: 4
+          }}>
+            Confirm Appointment
+          </button>
+        </div>
+      </div>
+    </>);
+
+}
+
+function App() {
+  const [selected, setSelected] = useState(null);
+  const [activeDate, setActiveDate] = useState(1); // default Tue 19
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [pendingName, setPendingName] = useState('');
+  const [pendingPhone, setPendingPhone] = useState('');
+  const [screen, setScreen] = useState('scheduler'); // 'scheduler' | 'success'
+  const [bookedName, setBookedName] = useState('');
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const handleUpdate = (key, val) => {
+    setTweaks((prev) => ({ ...prev, [key]: val }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: val } }, '*');
+  };
+
+  const closeTweaks = () => {
+    setTweaksOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const accent = tweaks.accentColor;
+  const takenSet = TAKEN_MAP[activeDate] || new Set();
+  const slotState = (s) => takenSet.has(s) ? 'taken' : selected === s ? 'selected' : 'available';
+
+  const slotStyle = (s) => {
+    const st = slotState(s);
+    if (st === 'selected') return { background: accent, color: 'white', border: 'none', boxShadow: `0 4px 16px ${accent}50` };
+    if (st === 'taken') return { background: '#f3f4f6', color: '#9ca3af', border: 'none' };
+    return { background: 'white', color: '#1f2937', border: '1px solid #e5e7eb' };
+  };
+
+  const handleSubmit = (name, phone) => {
+    setPendingName(name);
+    setPendingPhone(phone);
+    setSheetOpen(false);
+    setTimeout(() => setOtpOpen(true), 380);
+  };
+
+  const handleOTPVerified = () => {
+    setOtpOpen(false);
+    setBookedName(pendingName);
+    setTimeout(() => setScreen('success'), 380);
+  };
+
+  const handleRebook = () => {
+    setDupOpen(false);
+    setBookedName('—');
+    setTimeout(() => setScreen('success'), 380);
+  };
+
+  const handleReset = () => {
+    setScreen('scheduler');
+    setSelected(null);
+    setActiveDate(0);
+    setBookedName('');
+  };
+
+  return (
+    <>
+      <div className="phone-wrap">
+        <div className="phone-body">
+          <div className="side-btn" style={{ left: -3, top: 144, height: 28 }} />
+          <div className="side-btn" style={{ left: -3, top: 184, height: 52 }} />
+          <div className="side-btn" style={{ left: -3, top: 246, height: 52 }} />
+          <div className="side-btn" style={{ right: -3, top: 194, height: 76 }} />
+
+          <div className="phone-screen">
+            <div className="island" />
+
+            {/* Status Bar */}
+            <div style={{ height: 58, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 28px 10px', flexShrink: 0 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#111' }}>9:41</span>
+              <StatusIcons />
+            </div>
+
+            {screen === 'scheduler' ? (
+            /* ─────────── SCHEDULER SCREEN ─────────── */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                {/* 1. Doctor Profile Header */}
+                <div style={{ margin: '14px 16px 4px', display: 'flex', alignItems: 'center', gap: 13, flexShrink: 0 }}>
+                  {/* Avatar */}
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#c7d2fe 0%,#a5b4fc 100%)', border: '2.5px solid white', boxShadow: '0 2px 8px rgba(99,102,241,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: '#3730a3', letterSpacing: '-0.02em', userSelect: 'none' }}>LS</span>
+                  </div>
+                  {/* Name + subtitle */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: 1.2 }}>{tweaks.doctorName}</div>
+                    <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 3, fontWeight: 500 }}>General Practitioner · Telehealth</div>
+                  </div>
+                  {/* Session badge */}
+                  <div style={{ flexShrink: 0, background: '#eef2ff', borderRadius: 999, padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#4338ca', whiteSpace: 'nowrap' }}>{tweaks.sessionLength}</span>
+                  </div>
+                </div>
+
+                {/* 3. Manage appointment — outlined secondary CTA */}
+                <div style={{ padding: '12px 16px 12px', flexShrink: 0 }}>
+                  <button onClick={() => setLookupOpen(true)} style={{
+                  width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'white', border: `1.5px solid ${accent}`,
+                  borderRadius: 14, cursor: 'pointer',
+                  fontFamily: 'DM Sans, sans-serif', fontSize: 14.5, fontWeight: 600,
+                  color: accent, letterSpacing: '-0.01em',
+                  transition: 'background 0.15s, box-shadow 0.15s',
+                  userSelect: 'none', padding: '10px 16px'
+                }}
+                onMouseEnter={(e) => {e.currentTarget.style.background = `${accent}08`;}}
+                onMouseLeave={(e) => {e.currentTarget.style.background = 'white';}}>
+                    Manage Existing Appointment
+                  </button>
+                </div>
+
+                {/* 2. Section title */}
+                <div style={{ padding: '4px 20px 10px', flexShrink: 0, borderBottom: '1px solid #f3f4f6' }}>
+                  <h1 style={{ fontSize: 17, fontWeight: 800, color: '#111827', margin: 0, lineHeight: 1.3, letterSpacing: '-0.02em' }}>
+                    Select an Appointment Time
+                  </h1>
+                </div>
+
+                {/* 7-day week strip */}
+                <div style={{ flexShrink: 0, padding: '12px 0 4px' }}>
+                  <div style={{ padding: '0 20px 0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+                    <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>May 2026</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#d1d5db' }} />
+                      <span style={{ fontSize: 10.5, color: '#9ca3af', fontWeight: 500 }}>· Mon · Thu · Fri unavailable</span>
+                    </div>
+                  </div>
+                  <div className="no-scroll" style={{ display: 'flex', gap: 5, overflowX: 'auto', padding: '0 16px 4px' }}>
+                    {DATES.map((d, i) => {
+                    const isActive = i === activeDate;
+                    const isDisabled = d.disabled;
+                    return (
+                      <button key={i}
+                      disabled={isDisabled}
+                      onClick={() => {setActiveDate(i);setSelected(null);}}
+                      style={{
+                        flexShrink: 0,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        gap: 3,
+                        padding: '8px 10px',
+                        borderRadius: 13,
+                        border: 'none',
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        fontFamily: 'DM Sans, sans-serif',
+                        background: isActive ? accent : isDisabled ? 'transparent' : 'white',
+                        color: isActive ? 'white' : isDisabled ? '#d1d5db' : '#374151',
+                        boxShadow: isActive ?
+                        `0 4px 14px ${accent}45` :
+                        isDisabled ? 'none' :
+                        '0 1px 3px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05)',
+                        transition: 'all 0.18s',
+                        minWidth: 44
+                      }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.03em', opacity: isDisabled ? 0.5 : 1 }}>{d.day}</span>
+                          <span style={{ fontSize: 15, fontWeight: isActive ? 800 : 600, lineHeight: 1 }}>{d.date}</span>
+                          {!isDisabled &&
+                        <div style={{ width: 4, height: 4, borderRadius: '50%', background: isActive ? 'rgba(255,255,255,0.7)' : accent, marginTop: 1 }} />
+                        }
+                        </button>);
+
+                  })}
+                  </div>
+                  {/* Availability hint removed — now shown inline with month label */}
+                </div>
+
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: 14, padding: '8px 20px 8px', flexShrink: 0, alignItems: 'center', borderBottom: '1px solid #f3f4f6' }}>
+                  {[
+                { bg: accent, label: 'Selected', outline: false },
+                { bg: 'white', label: 'Available', outline: true },
+                { bg: '#e5e7eb', label: 'Taken', outline: false }].
+                map(({ bg, label, outline }) =>
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 9, height: 9, borderRadius: '50%', background: bg, border: outline ? '1.5px solid #d1d5db' : 'none', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11.5, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+                    </div>
+                )}
+                </div>
+
+                {/* Slots — two labeled sections */}
+                <div className="no-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 8px' }}>
+
+                  {/* Morning Session */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.04em', textTransform: 'uppercase' }}>☀ Morning Session</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: "rgb(154, 156, 167)" }}>10:00 AM – 12:00 PM</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                      {MORNING.map((s) =>
+                    <button key={s} disabled={slotState(s) === 'taken'} onClick={() => slotState(s) !== 'taken' && setSelected(selected === s ? null : s)} className="slot-btn" style={slotStyle(s)}>{s}</button>
+                    )}
+                    </div>
+                  </div>
+
+                  {/* Evening Session */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: "rgb(33, 26, 207)" }}>🌙 Evening Session</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: "rgb(154, 156, 167)" }}>4:00 PM – 7:00 PM</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                      {EVENING.map((s) =>
+                    <button key={s} disabled={slotState(s) === 'taken'} onClick={() => slotState(s) !== 'taken' && setSelected(selected === s ? null : s)} className="slot-btn" style={slotStyle(s)}>{s}</button>
+                    )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Confirm button */}
+                {selected &&
+              <div style={{ padding: '6px 20px 15px', flexShrink: 0, borderTop: '1px solid #f3f4f6' }}>
+                  <button onClick={() => {tweaks.simulateDuplicate ? setDupOpen(true) : setSheetOpen(true);}} style={{
+                  width: '100%', padding: '14px 16px', borderRadius: 14, border: 'none',
+                  fontFamily: 'DM Sans, sans-serif',
+                  background: accent, color: 'white',
+                  fontWeight: 600, fontSize: 15, cursor: 'pointer',
+                  transition: 'background 0.22s, box-shadow 0.22s',
+                  boxShadow: `0 6px 22px ${accent}42`,
+                  letterSpacing: '-0.01em'
+                }}>
+                    {`Confirm · ${DATES[activeDate].day} ${DATES[activeDate].date}, ${selected}`}
+                  </button>
+                </div>
+              }
+              </div>) : (
+
+            /* ─────────── SUCCESS SCREEN ─────────── */
+            <SuccessScreen
+              accent={accent}
+              doctorName={tweaks.doctorName}
+              sessionLength={tweaks.sessionLength}
+              date={DATES[activeDate]}
+              time={selected}
+              name={bookedName}
+              onReset={handleReset} />)
+
+            }
+
+            {/* Home Indicator */}
+            <div style={{ height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 134, height: 5, background: '#000', borderRadius: 3, opacity: 0.15 }} />
+            </div>
+
+            {/* Bottom Sheet (inside phone-screen so it clips correctly) */}
+            {screen === 'scheduler' &&
+            <>
+                <BookingSheet
+                open={sheetOpen}
+                onClose={() => setSheetOpen(false)}
+                onSubmit={handleSubmit}
+                accent={accent}
+                date={DATES[activeDate]}
+                time={selected}
+                doctorName={tweaks.doctorName}
+                sessionLength={tweaks.sessionLength} />
+              
+                <LookupSheet
+                open={lookupOpen}
+                onClose={() => setLookupOpen(false)}
+                accent={accent} />
+              
+                <OTPGateSheet
+                open={otpOpen}
+                onClose={() => setOtpOpen(false)}
+                onVerified={handleOTPVerified}
+                accent={accent}
+                phone={pendingPhone} />
+              
+                <DuplicateAlertSheet
+                open={dupOpen}
+                onClose={() => setDupOpen(false)}
+                onRebook={handleRebook}
+                accent={accent}
+                date={DATES[activeDate]} />
+              
+              </>
+            }
+          </div>
+        </div>
+      </div>
+
+      {tweaksOpen &&
+      <TweaksPanel tweaks={tweaks} onUpdate={handleUpdate} onClose={closeTweaks} />
+      }
+    </>);
+
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+
+</script>
+</body>
+</html>

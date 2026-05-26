@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TeleClinic — Doctor Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: radial-gradient(ellipse at 72% 10%, #bbf7d0 0%, #d1fae5 30%, #ecfdf5 65%, #f0fdf4 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 32px 24px;
+    }
+    @media (max-height: 920px) {
+      body { align-items: flex-start; padding-top: 20px; }
+      .phone-wrap { transform: scale(0.88); transform-origin: center top; }
+    }
+    @media (max-height: 780px) {
+      .phone-wrap { transform: scale(0.76); transform-origin: center top; }
+    }
+
+    /* ── Phone shell ── */
+    .phone-wrap {
+      filter: drop-shadow(0 48px 96px rgba(0,0,0,0.22)) drop-shadow(0 0 0 1px rgba(0,0,0,0.55));
+    }
+    .phone-body {
+      width: 393px;
+      background: linear-gradient(170deg, #2d2d2f 0%, #191919 100%);
+      border-radius: 55px; padding: 14px;
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.11);
+    }
+    .phone-screen {
+      width: 100%; height: 812px;
+      background: #f7f6f4;
+      border-radius: 42px; overflow: hidden;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .island {
+      position: absolute; top: 12px; left: 50%;
+      transform: translateX(-50%);
+      width: 126px; height: 35px;
+      background: #000; border-radius: 22px;
+      z-index: 20; pointer-events: none;
+    }
+    .side-btn { position: absolute; width: 3px; background: #363638; border-radius: 2px; }
+
+    /* ── Scroll ── */
+    .screen-scroll {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 10px 13px 32px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .screen-scroll::-webkit-scrollbar { display: none; }
+    .screen-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border-radius: 18px;
+      border: 1px solid #ebe8e4;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.045);
+      padding: 13px;
+    }
+
+    /* ── Timeline scroll container ── */
+    .timeline-scroll {
+      max-height: 350px;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 12px;
+      padding-right: 2px;
+    }
+    .timeline-scroll::-webkit-scrollbar { width: 3px; }
+    .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+    .timeline-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+
+    /* ── Animations ── */
+    @keyframes pulse-glow {
+      0%,100% { box-shadow: 0 16px 40px -8px rgba(16,185,129,.28), 0 4px 12px rgba(16,185,129,.14), 0 0 0 0 rgba(34,197,94,.20); }
+      50%      { box-shadow: 0 22px 52px -8px rgba(16,185,129,.40), 0 4px 12px rgba(16,185,129,.18), 0 0 0 5px rgba(34,197,94,.08); }
+    }
+    .active-slot {
+      animation: pulse-glow 2.2s ease-in-out infinite;
+      background: linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%) !important;
+      border: 1.5px solid #22c55e !important;
+    }
+    @keyframes dot-pulse {
+      0%,100% { transform: scale(1); }
+      50%      { transform: scale(1.45); }
+    }
+    .dot-live { animation: dot-pulse 1.8s ease-in-out infinite; }
+    @keyframes shimmer {
+      0%   { background-position: -200% center; }
+      100% { background-position:  200% center; }
+    }
+    .progress-fill {
+      background: linear-gradient(90deg,#16a34a,#22c55e,#4ade80,#22c55e,#16a34a);
+      background-size: 200% 100%;
+      animation: shimmer 2.5s linear infinite;
+    }
+
+    /* ── Toggle switch ── */
+    .toggle-track {
+      width: 38px; height: 22px; border-radius: 99px;
+      position: relative; cursor: pointer; flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .toggle-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: white; position: absolute; top: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      transition: left 0.2s;
+    }
+
+    /* ── Buttons ── */
+    .btn-push {
+      width: 100%; padding: 13px;
+      background: #1c1917; color: #fafaf9;
+      border: none; border-radius: 12px;
+      font-family: 'DM Sans',sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background .15s, transform .1s;
+    }
+    .btn-push:active { transform: scale(.98); }
+
+    .btn-verify {
+      width: 100%; padding: 15px;
+      background: #1c1917; color: white;
+      border: none; border-radius: 14px;
+      font-family: 'DM Sans',sans-serif; font-size: 14.5px; font-weight: 800;
+      cursor: pointer; letter-spacing: -.01em;
+      box-shadow: 0 6px 22px rgba(28,25,23,.25);
+      transition: background .15s, transform .1s;
+    }
+    .btn-verify:active { transform: scale(.98); }
+
+    .btn-cancel {
+      width: 100%; padding: 12px 14px;
+      background: #fff5f5; color: #b91c1c;
+      border: 1.5px solid #fca5a5; border-radius: 12px;
+      font-family: 'DM Sans',sans-serif; font-size: 12.5px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: background .15s, transform .1s;
+    }
+    .btn-cancel:active { transform: scale(.98); background: #fee2e2; }
+
+    .notes-area {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 12px;
+      padding: 11px 13px; font-family: 'DM Sans',sans-serif;
+      font-size: 12.5px; color: #111827; background: #fafaf9;
+      resize: none; outline: none;
+      transition: border-color .18s, box-shadow .18s; line-height: 1.6;
+    }
+    .notes-area:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.12); background: white; }
+    .notes-area::placeholder { color: #9ca3af; }
+
+    /* ── Notes bottom sheet ── */
+    .notes-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: white;
+      border-radius: 28px 28px 42px 42px;
+      padding: 0 0 32px;
+      z-index: 36;
+      max-height: 78%;
+      display: flex; flex-direction: column;
+      transform: translateY(100%);
+      transition: transform .38s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 -6px 32px rgba(0,0,0,.13);
+    }
+    .notes-sheet.open { transform: translateY(0); }
+    .notes-sheet-overlay {
+      position: absolute; inset: 0; border-radius: 42px;
+      background: rgba(0,0,0,0); pointer-events: none;
+      transition: background .3s; z-index: 35;
+    }
+    .notes-sheet-overlay.open { background: rgba(0,0,0,.38); pointer-events: all; }
+    .date-chip {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 9px 11px; border-radius: 12px; border: none;
+      cursor: pointer; min-width: 48px; font-family: 'DM Sans',sans-serif;
+      transition: background .15s, transform .1s; user-select: none; flex-shrink: 0;
+    }
+    .date-chip:active { transform: scale(.93); }
+
+    .date-input {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid #e5e7eb; border-radius: 12px;
+      font-family: 'DM Sans',sans-serif; font-size: 13px; color: #1c1917;
+      background: #fafaf9; outline: none;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .date-input:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.12); background: white; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .09em; text-transform: uppercase; color: #a8a29e;
+    }
+    .status-pill {
+      font-size: 9px; font-weight: 800;
+      letter-spacing: .07em; border-radius: 6px;
+      padding: 2px 7px; text-transform: uppercase;
+    }
+
+    /* ── Segmented switcher ── */
+    .seg-bar {
+      display: flex; gap: 4px;
+      background: #f3f4f6; border-radius: 10px; padding: 3px;
+      margin-top: 11px;
+    }
+    .seg-btn {
+      flex: 1; padding: 7px 6px; border: none; border-radius: 8px;
+      font-family: 'DM Sans',sans-serif; font-size: 11px; font-weight: 700;
+      cursor: pointer; transition: all .18s; background: transparent; color: #9ca3af;
+    }
+    .seg-btn.active { background: white; color: #1c1917; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+    /* ── Stats sheet ── */
+    .stats-sheet {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: white; border-radius: 22px 22px 42px 42px;
+      padding: 0; z-index: 35;
+      max-height: 72%;
+      display: flex; flex-direction: column;
+      transform: translateY(100%);
+      transition: transform .38s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 -8px 32px rgba(0,0,0,.14);
+    }
+    .stats-sheet.open { transform: translateY(0); }
+    .stats-body-scroll { flex: 1; overflow-y: auto; padding: 4px 18px 24px; }
+    .stats-body-scroll::-webkit-scrollbar { width: 3px; }
+    .stats-body-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+
+    /* ── Gear slide-over ── */
+    .gear-overlay {
+      position: absolute; inset: 0; border-radius: 42px;
+      background: rgba(0,0,0,0); pointer-events: none;
+      transition: background .28s; z-index: 40;
+    }
+    .gear-overlay.open { background: rgba(0,0,0,.46); pointer-events: all; }
+
+    .gear-panel {
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 86%; background: white;
+      border-radius: 0 42px 42px 0;
+      transform: translateX(100%);
+      transition: transform .36s cubic-bezier(.32,.72,0,1);
+      z-index: 41; overflow-y: auto; padding: 0 0 28px;
+    }
+    .gear-panel::-webkit-scrollbar { display: none; }
+    .gear-panel { -ms-overflow-style: none; scrollbar-width: none; }
+    .gear-panel.open { transform: translateX(0); }
+
+    /* ── OTP overlay ── */
+    .otp-overlay {
+      position: absolute; inset: 0;
+      background: rgba(15,15,15,.78);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      z-index: 50;
+      border-radius: 42px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: opacity .35s;
+    }
+    .otp-overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .otp-card {
+      background: white; border-radius: 24px;
+      padding: 26px 22px 22px; width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.06);
+    }
+    .otp-box {
+      width: 54px; height: 60px; text-align: center;
+      font-size: 24px; font-weight: 800;
+      font-family: 'DM Sans',sans-serif; color: #111827;
+      border: 2px solid #e5e7eb; border-radius: 14px;
+      background: #fafaf9; outline: none;
+      transition: border-color .15s, box-shadow .15s; caret-color: #22c55e;
+    }
+    .otp-box:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.15); background: white; }
+    .otp-box.filled { border-color: #22c55e; background: #f0fdf4; }
+
+    .gear-btn {
+      background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 9px;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 15px; transition: background .15s; flex-shrink: 0;
+    }
+    .gear-btn:active { background: #e5e7eb; }
+  </style>
+</head>
+<body>
+
+<div class="phone-wrap">
+  <div class="phone-body">
+    <div class="side-btn" style="left:-3px;top:144px;height:28px;"></div>
+    <div class="side-btn" style="left:-3px;top:184px;height:52px;"></div>
+    <div class="side-btn" style="left:-3px;top:246px;height:52px;"></div>
+    <div class="side-btn" style="right:-3px;top:194px;height:76px;"></div>
+
+    <div class="phone-screen">
+      <div class="island"></div>
+
+      <!-- Status Bar -->
+      <div style="height:58px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 10px;flex-shrink:0;background:white;">
+        <span style="font-weight:700;font-size:15px;color:#111;">9:41</span>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="#111"><rect x="0" y="6" width="3" height="6" rx=".8"/><rect x="4.5" y="4" width="3" height="8" rx=".8"/><rect x="9" y="2" width="3" height="10" rx=".8"/><rect x="13.5" y="0" width="3" height="12" rx=".8" opacity=".3"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><circle cx="8" cy="10.5" r="1.5" fill="#111"/><path d="M3 7.2C4.5 5.8 6.2 5 8 5s3.5.8 5 2.2" stroke="#111" stroke-width="1.4" stroke-linecap="round"/><path d="M0.5 4.2C2.6 2.1 5.1 1 8 1s5.4 1.1 7.5 3.2" stroke="#111" stroke-width="1.4" stroke-linecap="round" opacity=".35"/></svg>
+          <div style="position:relative;width:25px;height:12px;">
+            <div style="position:absolute;inset:0;width:22px;height:12px;border:1.5px solid rgba(0,0,0,.6);border-radius:3px;"></div>
+            <div style="position:absolute;right:-2.5px;top:3.5px;width:2.5px;height:5px;background:rgba(0,0,0,.6);border-radius:0 2px 2px 0;"></div>
+            <div style="position:absolute;left:2px;top:2px;width:13px;height:8px;background:#111;border-radius:1.5px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App Header -->
+      <div style="background:white;padding:10px 18px 13px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid #f0ede9;">
+        <div>
+          <h1 style="font-size:21px;font-weight:800;color:#1c1917;letter-spacing:-.03em;line-height:1.15;">Hello, Dr. Lakshimi Sagar</h1>
+          <div style="display:flex;align-items:center;gap:7px;margin-top:5px;">
+            <span style="background:#dcfce7;color:#15803d;font-size:9px;font-weight:800;letter-spacing:.07em;border-radius:6px;padding:2px 8px;text-transform:uppercase;display:inline-flex;align-items:center;gap:4px;"><span style="width:5px;height:5px;border-radius:50%;background:#16a34a;display:inline-block;"></span>Online</span>
+            <span style="font-size:11px;color:rgb(127, 123, 120);font-weight:500;">Sat, 17 May 2026</span>
+          </div>
+        </div>
+        <button class="gear-btn" onclick="openGear()" title="Availability Settings">
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+            <rect x="0" y="0" width="16" height="2" rx="1" fill="#374151"/>
+            <rect x="0" y="5" width="16" height="2" rx="1" fill="#374151"/>
+            <rect x="0" y="10" width="16" height="2" rx="1" fill="#374151"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Scrollable Body -->
+      <div class="screen-scroll">
+
+        <!-- ══ TIMELINE CARD ══ -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <p class="section-label" style="color: rgb(168, 162, 158)">Today's Appointments</p>
+            <span style="font-size:10px;font-weight:600;color:#a8a29e;">5 slots</span>
+          </div>
+
+          <div class="timeline-scroll" id="timelineScroll">
+
+            <!-- Slot 1 — Done -->
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:14px;background:#f9f8f7;border:1px solid #f0ede9;opacity:.56;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:#d1d5db;border:2px solid white;box-shadow:0 0 0 1px #d1d5db;"></div>
+                <div style="width:1px;height:26px;background:#e5e7eb;margin-top:3px;"></div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:2px;">
+                  <span style="font-size:11.5px;font-weight:700;color:#6b7280;font-variant-numeric:tabular-nums;">09:00 AM</span>
+                  <span class="status-pill" style="background:#f3f4f6;color:#9ca3af;">DONE</span>
+                </div>
+                <p style="font-size:15px;font-weight:600;color:#374151;">Marcus T.</p>
+                <p style="font-size:11.5px;color:#6b7280;margin-top:3px;">+91 98400 11234 · Follow-up Review</p>
+              </div>
+            </div>
+
+            <!-- Slot 2 — ACTIVE NOW -->
+            <div class="active-slot" style="display:flex;align-items:flex-start;gap:9px;padding:12px 11px;border-radius:13px;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:3px;">
+                <div class="dot-live" style="width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 0 2px #86efac;"></div>
+                <div style="width:1px;height:26px;background:#86efac;margin-top:3px;"></div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:3px;">
+                  <span style="font-size:11.5px;font-weight:800;color:#14532d;font-variant-numeric:tabular-nums;">10:15 AM</span>
+                  <span class="status-pill" style="background:#22c55e;color:white;">ACTIVE NOW</span>
+                </div>
+                <p style="font-size:13px;font-weight:800;color:#15803d;">Priya Mehta</p>
+                <div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                  <span style="font-size:10px;font-weight:600;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;padding:1px 6px;white-space:nowrap;">📱 +91 98765 43210</span>
+                  <span style="font-size:10px;color:#4b7c56;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">💬 Chest pain, shortness of breath</span>
+                </div>
+                <button style="width:100%;margin-top:9px;padding:0 14px;height:56px;background:#25D366;color:white;border:none;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 8px 24px rgba(37,211,102,.38),0 2px 8px rgba(37,211,102,.18);letter-spacing:-.01em;" onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">
+                  <svg width="22" height="22" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.18)"/><path fill-rule="evenodd" clip-rule="evenodd" d="M22.7 9.3A9.35 9.35 0 0 0 16 6.6c-5.19 0-9.4 4.21-9.4 9.4 0 1.66.44 3.28 1.27 4.7l-1.37 5 5.16-1.35a9.38 9.38 0 0 0 4.34 1.1c5.19 0 9.4-4.21 9.4-9.4 0-2.51-.98-4.87-2.7-6.65zm-6.7 14.45a7.8 7.8 0 0 1-3.97-1.08l-.28-.17-2.93.77.78-2.86-.19-.3a7.8 7.8 0 0 1-1.2-4.21c0-4.31 3.51-7.82 7.82-7.82 2.09 0 4.05.81 5.53 2.29a7.77 7.77 0 0 1 2.29 5.54c0 4.32-3.51 7.84-7.85 7.84zm4.29-5.86c-.23-.12-1.38-.68-1.6-.76-.21-.08-.37-.12-.52.12s-.6.76-.73.91c-.13.16-.27.18-.5.06-.23-.12-.97-.36-1.85-1.14a6.93 6.93 0 0 1-1.28-1.59c-.13-.23-.01-.35.1-.47.1-.1.23-.27.35-.4.12-.14.16-.23.24-.38.08-.16.04-.3-.02-.41-.06-.12-.52-1.26-.72-1.72-.19-.45-.38-.39-.52-.4h-.44c-.15 0-.4.06-.62.3-.21.23-.82.8-.82 1.96s.84 2.27.96 2.43c.12.16 1.66 2.53 4.02 3.55.56.24 1 .39 1.34.5.56.18 1.07.15 1.48.09.45-.07 1.38-.56 1.57-1.11.2-.54.2-1.01.14-1.11-.06-.1-.21-.16-.44-.28z" fill="white"/></svg>
+                  <span>Start WhatsApp Call</span>
+                </button>
+                <div style="margin-top:9px;padding-top:9px;border-top:1px solid #bbf7d0;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:9.5px;font-weight:700;color:#15803d;letter-spacing:.05em;text-transform:uppercase;">Session Progress</span>
+                    <span style="font-size:10px;font-weight:800;color:#15803d;font-variant-numeric:tabular-nums;">12 mins remaining</span>
+                  </div>
+                  <div style="width:100%;background:rgba(187,247,208,.55);border-radius:99px;overflow:hidden;height:6px;">
+                    <div class="progress-fill" style="width:60%;height:100%;border-radius:99px;"></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;margin-top:3px;">
+                    <span style="font-size:9px;color:#4b7c56;font-weight:500;">Started 10:15 AM</span>
+                    <span style="font-size:9px;color:#4b7c56;font-weight:500;">Ends 10:45 AM</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Slot 3 — Next Up -->
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:14px;background:#fafaf9;border:1px solid #f0ede9;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:#e5e7eb;border:2px solid white;box-shadow:0 0 0 1px #e5e7eb;"></div>
+                <div style="width:1px;height:26px;background:#e5e7eb;margin-top:3px;"></div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:2px;">
+                  <span style="font-size:11.5px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums;">11:00 AM</span>
+                  <span class="status-pill" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">NEXT UP</span>
+                </div>
+                <p style="font-size:15px;font-weight:600;color:#1c1917;">James K.</p>
+                <p style="font-size:11.5px;color:#4b5563;margin-top:3px;">+91 91234 56789 · Prescription Renewal</p>
+              </div>
+            </div>
+
+            <!-- Slot 4 — Upcoming -->
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:14px;background:#fafaf9;border:1px solid #f0ede9;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:#e5e7eb;border:2px solid white;box-shadow:0 0 0 1px #e5e7eb;"></div>
+                <div style="width:1px;height:26px;background:#e5e7eb;margin-top:3px;"></div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:2px;">
+                  <span style="font-size:11.5px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums;">11:30 AM</span>
+                  <span class="status-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">UPCOMING</span>
+                </div>
+                <p style="font-size:15px;font-weight:600;color:#1c1917;">Ananya R.</p>
+                <p style="font-size:11.5px;color:#4b5563;margin-top:3px;">+91 87654 32109 · Routine Checkup</p>
+              </div>
+            </div>
+
+            <!-- Slot 5 — Upcoming -->
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border-radius:14px;background:#fafaf9;border:1px solid #f0ede9;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;padding-top:2px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:#e5e7eb;border:2px solid white;box-shadow:0 0 0 1px #e5e7eb;"></div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:2px;">
+                  <span style="font-size:11.5px;font-weight:700;color:#374151;font-variant-numeric:tabular-nums;">12:00 PM</span>
+                  <span class="status-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">UPCOMING</span>
+                </div>
+                <p style="font-size:15px;font-weight:600;color:#1c1917;">Ravi S.</p>
+                <p style="font-size:11.5px;color:#4b5563;margin-top:3px;">+91 99887 76655 · Diabetes Follow-up</p>
+              </div>
+            </div>
+
+          </div>
+          <!-- end timeline-scroll -->
+
+          <!-- Browse by Date accordion -->
+          <div style="margin-top: 11px; border-top: 1px solid #f0ede9; padding-top: 10px; padding: 10px 0px 0px; border-width: 1px 0px 0px; border-top-style: solid; border-top-color: rgb(240, 237, 233); margin: 11px 0px 1px">
+            <button onclick="toggleDateBrowse()" style="width:100%; background:none; border:none; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><rect x="1" y="3" width="14" height="12" rx="2.5" stroke="#44403c" stroke-width="1.5"/><path d="M5 1v4M11 1v4M1 7h14" stroke="#44403c" stroke-width="1.5" stroke-linecap="round"/><rect x="4" y="10" width="2" height="2" rx=".5" fill="#44403c"/><rect x="7" y="10" width="2" height="2" rx=".5" fill="#44403c"/></svg>
+                <p style="font-size:11px; font-weight:700; color:#44403c;">Browse Appointments by Date</p>
+              </div>
+              <svg id="dateBrowseChevron" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0; transition:transform .22s; color:#9ca3af;">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+
+            <div id="dateBrowseBody" style="display:none; margin-top:10px;">
+              <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px;" class="no-scroll">
+                <div id="browseChipRow" style="display:flex;gap:6px;padding:2px 0 4px;width:max-content;">
+                  <button class="date-chip" data-date="2026-05-17" onclick="selectBrowseDate('2026-05-17')" style="background:#1c1917;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.05em;">Sat</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:white;">17</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:#22c55e;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-18" onclick="selectBrowseDate('2026-05-18')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Sun</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">18</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-19" onclick="selectBrowseDate('2026-05-19')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Mon</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">19</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:#22c55e;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-20" onclick="selectBrowseDate('2026-05-20')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Tue</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">20</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:#22c55e;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-21" onclick="selectBrowseDate('2026-05-21')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Wed</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">21</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-22" onclick="selectBrowseDate('2026-05-22')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Thu</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">22</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-23" onclick="selectBrowseDate('2026-05-23')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Fri</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">23</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-24" onclick="selectBrowseDate('2026-05-24')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Sat</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">24</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-25" onclick="selectBrowseDate('2026-05-25')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Sun</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">25</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                  <button class="date-chip" data-date="2026-05-26" onclick="selectBrowseDate('2026-05-26')" style="background:#f3f4f6;">
+                    <span class="chip-day" style="font-size:9px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Mon</span>
+                    <span class="chip-num" style="font-size:17px;font-weight:800;color:#1c1917;">26</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:transparent;display:block;"></span>
+                  </button>
+                </div>
+              </div>
+              <!-- Custom date picker row -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 12px;background:#f9f8f7;border-radius:12px;border:1px solid #f0ede9;">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;"><rect x="1" y="3" width="14" height="12" rx="2.5" stroke="#9ca3af" stroke-width="1.4"/><path d="M5 1v4M11 1v4M1 7h14" stroke="#9ca3af" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <span style="font-size:11.5px;font-weight:600;color:#6b7280;flex:1;">Pick any date</span>
+                <input type="date" id="customBrowseDate" class="date-input" style="width:auto;padding:5px 9px;font-size:11.5px;border-radius:9px;border:1.5px solid #e5e7eb;background:white;color:#1c1917;cursor:pointer;" oninput="onCustomDatePick(this.value)" />
+              </div>
+              <div id="browseList" style="display:flex; flex-direction:column; gap:5px;"></div>
+            </div>
+          </div>
+
+        </div>
+        <!-- end timeline card -->
+
+        <!-- ══ LIVE NOTES TRIGGER ══ -->
+        <button onclick="openNotes()" style="width:100%;background:white;border:1px solid #ebe8e4;border-radius:18px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 1px 5px rgba(0,0,0,.045);user-select:none;transition:background .15s;" onmousedown="this.style.background='#f9f8f7'" onmouseup="this.style.background='white'" onmouseleave="this.style.background='white'">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:11px;background:#f0fdf4;border:1px solid #bbf7d0;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="#22c55e" stroke-width="1.5"/><path d="M5 6h8M5 9h8M5 12h5" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div style="text-align:left;">
+              <p style="font-size:13px;font-weight:700;color:#1c1917;line-height:1.2;">Live Consultation Notes</p>
+              <p style="font-size:11px;color:#a8a29e;margin-top:2px;">Tap to add observations &amp; send to patient</p>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+      </div>
+      <!-- end screen-scroll -->
+
+
+      <!-- ══ NOTES BOTTOM SHEET ══ -->
+      <div class="notes-sheet-overlay" id="notesOverlay" onclick="closeNotes()"></div>
+      <div class="notes-sheet" id="notesSheet">
+        <div style="display:flex;justify-content:center;padding:12px 0 4px;flex-shrink:0;">
+          <div style="width:40px;height:4px;background:#e5e7eb;border-radius:99px;"></div>
+        </div>
+        <div style="padding:8px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f3f4f6;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:3px;height:16px;border-radius:99px;background:#22c55e;flex-shrink:0;"></div>
+            <h3 style="font-size:14px;font-weight:800;color:#1c1917;">Live Consultation Notes</h3>
+          </div>
+          <button onclick="closeNotes()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:2px 4px;line-height:1;">×</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:14px 18px 0;">
+          <p style="font-size:11.5px;color:#a8a29e;margin-bottom:10px;">Active session: <strong style="color:#15803d;">Priya Mehta</strong> · 10:15 AM</p>
+          <textarea class="notes-area" rows="5" placeholder="Type clinical observations, symptoms, or instructions here…" style="margin-bottom:12px;"></textarea>
+          <button id="sendNotesBtn" onclick="sendNotes()" class="btn-push" style="margin-bottom:12px;transition:background .2s,transform .1s;">
+            <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill-rule="evenodd" clip-rule="evenodd" d="M22.7 9.3A9.35 9.35 0 0 0 16 6.6c-5.19 0-9.4 4.21-9.4 9.4 0 1.66.44 3.28 1.27 4.7l-1.37 5 5.16-1.35a9.38 9.38 0 0 0 4.34 1.1c5.19 0 9.4-4.21 9.4-9.4 0-2.51-.98-4.87-2.7-6.65zm-6.7 14.45a7.8 7.8 0 0 1-3.97-1.08l-.28-.17-2.93.77.78-2.86-.19-.3a7.8 7.8 0 0 1-1.2-4.21c0-4.31 3.51-7.82 7.82-7.82 2.09 0 4.05.81 5.53 2.29a7.77 7.77 0 0 1 2.29 5.54c0 4.32-3.51 7.84-7.85 7.84z" fill="white"/></svg>
+            Send Notes to Patient
+          </button>
+          <!-- sent confirmation toast -->
+          <div id="notesSentToast" style="display:none;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:13px;padding:12px 14px;margin-bottom:12px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <p style="font-size:12.5px;font-weight:700;color:#15803d;line-height:1.2;">Notes sent via WhatsApp</p>
+              <p style="font-size:11px;color:#4b7c56;margin-top:2px;">Priya Mehta will receive them shortly</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           STATS BOTTOM SHEET
+      ══════════════════════════════ -->
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,0);pointer-events:none;border-radius:42px;transition:background .3s;z-index:34;" id="statsOverlay" onclick="closeStats()"></div>
+      <div class="stats-sheet" id="statsSheet">
+        <div style="display:flex;justify-content:center;padding:12px 0 4px;">
+          <div style="width:38px;height:4px;background:#e5e7eb;border-radius:99px;"></div>
+        </div>
+        <div style="padding:8px 18px 6px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f3f4f6;margin-bottom:2px;">
+          <h3 style="font-size:14px;font-weight:800;color:#1c1917;" id="statsTitle">Appointment History</h3>
+          <button onclick="closeStats()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:2px 4px;line-height:1;">×</button>
+        </div>
+        <div class="stats-body-scroll" id="statsBody">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           GEAR SLIDE-OVER
+      ══════════════════════════════ -->
+      <div class="gear-overlay" id="gearOverlay" onclick="closeGear()"></div>
+      <div class="gear-panel" id="gearPanel">
+
+        <!-- Panel header -->
+        <div style="padding:52px 18px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #f0ede9; background:white; position:sticky; top:0; z-index:1;">
+          <div>
+            <p style="font-size:9px; font-weight:700; color:#a8a29e; letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px;">Clinic Settings</p>
+            <h2 style="font-size:15px; font-weight:800; color:#1c1917; letter-spacing:-.025em; line-height:1.2;">⚙️ Clinic Configuration</h2>
+          </div>
+          <button onclick="closeGear()" style="background:#f3f4f6; border:1px solid #e5e7eb; border-radius:10px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; color:#9ca3af; line-height:1; flex-shrink:0;">×</button>
+        </div>
+
+        <div style="padding:18px 16px 32px; display:flex; flex-direction:column; gap:16px;">
+
+          <!-- ── SECTION 1: Precision Cancellation Engine (Accordion) ── -->
+          <div>
+            <button onclick="toggleCancellation()" style="width:100%; background:none; border:none; cursor:pointer; padding:0; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:3px; height:16px; border-radius:99px; background:#f59e0b; flex-shrink:0;"></div>
+                <p style="font-size:9.5px; font-weight:800; color:#1c1917; letter-spacing:.08em; text-transform:uppercase;">Precision Cancellation Engine</p>
+              </div>
+              <svg id="cancellationChevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0; transition:transform .22s; color:#9ca3af;">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+
+            <div id="cancellationBody" style="display:none;">
+              <div style="background:white; border-radius:16px; border:1px solid #e8e5e1; box-shadow:0 1px 4px rgba(0,0,0,.04); overflow:hidden;">
+              <div style="padding:12px 14px 10px; border-bottom:1px solid #f3f3f1;">
+                <p style="font-size:10px; font-weight:700; color:#a8a29e; letter-spacing:.08em; text-transform:uppercase;">Cancel Appointments &amp; Block Time</p>
+              </div>
+
+              <div style="padding:14px;">
+                <p style="font-size:11px; font-weight:700; color:#44403c; margin-bottom:8px;">Cancellation Scope</p>
+                <div style="background:#f3f4f6; border-radius:11px; padding:3px; display:flex; gap:3px; margin-bottom:14px;">
+                  <button id="scopeA" onclick="setScope('A')" style="flex:1; padding:8px 5px; border:none; border-radius:9px; font-family:'DM Sans',sans-serif; font-size:10.5px; font-weight:700; cursor:pointer; transition:all .18s; background:white; color:#1c1917; box-shadow:0 1px 4px rgba(0,0,0,.1); line-height:1.3;">Cancel Entire<br/>Selected Day(s)</button>
+                  <button id="scopeB" onclick="setScope('B')" style="flex:1; padding:8px 5px; border:none; border-radius:9px; font-family:'DM Sans',sans-serif; font-size:10.5px; font-weight:700; cursor:pointer; transition:all .18s; background:transparent; color:#9ca3af; line-height:1.3;">Select Individual<br/>Slots to Cancel</button>
+                </div>
+
+                <p style="font-size:11px; font-weight:700; color:#44403c; margin-bottom:7px;">Target Date</p>
+                <input class="date-input" type="date" value="2026-05-17" id="cancelDate" oninput="onDateChange()" style="margin-bottom:14px;" />
+
+                <div id="slotGrid" style="display:none; margin-bottom:14px;">
+                  <p style="font-size:11px; font-weight:700; color:#44403c; margin-bottom:8px;">Select Slots to Disable</p>
+                  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:5px;">
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 10:00 AM</label>
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 10:15 AM</label>
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 10:30 AM</label>
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 10:45 AM</label>
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 11:00 AM</label>
+                    <label style="display:flex; align-items:center; gap:5px; padding:7px 8px; background:#f9f8f7; border-radius:9px; border:1.5px solid #e5e7eb; cursor:pointer; font-size:10.5px; font-weight:700; color:#44403c;"><input type="checkbox" style="accent-color:#22c55e; width:13px; height:13px; flex-shrink:0;" onchange="onSlotChange()" /> 11:15 AM</label>
+                  </div>
+                </div>
+
+                <div id="confirmCard" style="display:none; background:#fff5f5; border:1.5px solid #fca5a5; border-radius:14px; padding:14px;">
+                  <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+                    <span style="font-size:18px; flex-shrink:0; line-height:1.2;">⚠️</span>
+                    <div>
+                      <p style="font-size:12px; font-weight:800; color:#991b1b; margin-bottom:3px;">Review Before Confirming</p>
+                      <p style="font-size:10.5px; color:#b91c1c; line-height:1.55;" id="confirmSummary">All appointments on the selected date will be cancelled.</p>
+                    </div>
+                  </div>
+                  <button style="width:100%; padding:13px; background:#dc2626; color:white; border:none; border-radius:11px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:800; cursor:pointer; letter-spacing:-.01em; box-shadow:0 4px 14px rgba(220,38,38,.28); transition:transform .1s;" onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''" onclick="confirmCancellation()">
+                    📅 Cancel Appointments
+                  </button>
+                </div>
+              </div>
+            </div><!-- closes white card -->
+          </div><!-- end cancellationBody -->
+        </div><!-- closes cancellation section wrapper -->
+
+          <!-- ── Weekly Schedule (Accordion) ── -->
+          <div>
+            <button onclick="toggleSchedule()" style="width:100%; background:none; border:none; cursor:pointer; padding:0; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:3px; height:16px; border-radius:99px; background:#22c55e; flex-shrink:0;"></div>
+                <p style="font-size:9.5px; font-weight:800; color:#1c1917; letter-spacing:.08em; text-transform:uppercase;">Weekly Schedule Management</p>
+              </div>
+              <svg id="scheduleChevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0; transition:transform .22s; color:#9ca3af;">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+
+            <div id="scheduleBody" style="display:none;">
+              <!-- Effective date notice -->
+              <div style="display:flex; align-items:flex-start; gap:9px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:11px 13px; margin-bottom:10px;">
+                <span style="font-size:14px; flex-shrink:0; line-height:1.2;">⏳</span>
+                <p style="font-size:11px; color:#92400e; line-height:1.6; font-weight:500;">Schedule changes take effect <strong>after the next 4 weeks</strong>. Existing bookings within that window will not be affected.</p>
+              </div>
+
+              <div style="background:white; border-radius:16px; border:1px solid #e8e5e1; box-shadow:0 1px 4px rgba(0,0,0,.04); overflow:hidden;">
+                <div style="padding:12px 14px 10px; border-bottom:1px solid #f3f3f1;">
+                  <p style="font-size:10px; font-weight:700; color:#a8a29e; letter-spacing:.08em; text-transform:uppercase;">All Working Days</p>
+                </div>
+                <div style="padding:6px 14px 12px; display:flex; flex-direction:column; gap:2px;">
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Monday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#d1d5db;" data-active="false" data-original="false" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:3px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Tuesday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#22c55e;" data-active="true" data-original="true" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:19px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Wednesday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#22c55e;" data-active="true" data-original="true" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:19px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Thursday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#d1d5db;" data-active="false" data-original="false" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:3px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Friday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#d1d5db;" data-active="false" data-original="false" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:3px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #f7f6f4;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Saturday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#22c55e;" data-active="true" data-original="true" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:19px;"></div></div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0;">
+                    <div><p style="font-size:13px; font-weight:600; color:#1c1917;">Sunday</p><p style="font-size:10px; color:#a8a29e; margin-top:1px;">Recurring · Every week</p></div>
+                    <div class="toggle-track day-toggle" style="background:#22c55e;" data-active="true" data-original="true" onclick="toggleDay(this)"><div class="toggle-thumb" style="left:19px;"></div></div>
+                  </div>
+
+                </div>
+                <!-- Save button (hidden until change) -->
+                <div id="saveScheduleWrap" style="display:none; padding:0 14px 14px;">
+                  <button onclick="saveSchedule()" style="width:100%; padding:12px; background:#1c1917; color:white; border:none; border-radius:11px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:transform .1s;" onmousedown="this.style.transform='scale(.98)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">Save Schedule Changes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- end gear panel -->
+
+
+      <!-- ══ GEAR PANEL SUCCESS SPLASH ══ -->
+      <div id="gearSuccessSplash" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.96); border-radius:0 42px 42px 0; z-index:42; flex-direction:column; align-items:center; justify-content:center; padding:28px; text-align:center;">
+        <div style="width:72px; height:72px; border-radius:50%; background:#dcfce7; display:flex; align-items:center; justify-content:center; margin-bottom:18px; box-shadow:0 4px 18px rgba(34,197,94,.22);">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M7 18L14 25L27 10" stroke="#16a34a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 id="gearSplashTitle" style="font-size:17px; font-weight:800; color:#1c1917; letter-spacing:-.02em; margin-bottom:8px;">Done!</h3>
+        <p id="gearSplashMsg" style="font-size:12.5px; color:#6b7280; line-height:1.65; max-width:260px; margin:0 auto 22px;">WhatsApp alerts have been dispatched to all affected patients.</p>
+        <button onclick="closeGearSplash()" style="padding:12px 28px; background:#1c1917; color:white; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer;">Close</button>
+      </div>
+
+      <!-- ══ OTP LOCK OVERLAY ══ -->
+      <div class="otp-overlay" id="otpOverlay">
+        <div class="otp-card">
+          <div style="display:flex;justify-content:center;margin-bottom:16px;">
+            <div style="position:relative;">
+              <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#d1fae5 0%,#6ee7b7 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(34,197,94,.22);">
+                <span style="font-size:24px;font-weight:800;color:#065f46;letter-spacing:-.02em;">SC</span>
+              </div>
+              <div style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,.14);">
+                <svg width="15" height="15" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill-rule="evenodd" clip-rule="evenodd" d="M22.7 9.3A9.35 9.35 0 0 0 16 6.6c-5.19 0-9.4 4.21-9.4 9.4 0 1.66.44 3.28 1.27 4.7l-1.37 5 5.16-1.35a9.38 9.38 0 0 0 4.34 1.1c5.19 0 9.4-4.21 9.4-9.4 0-2.51-.98-4.87-2.7-6.65zm-6.7 14.45a7.8 7.8 0 0 1-3.97-1.08l-.28-.17-2.93.77.78-2.86-.19-.3a7.8 7.8 0 0 1-1.2-4.21c0-4.31 3.51-7.82 7.82-7.82 2.09 0 4.05.81 5.53 2.29a7.77 7.77 0 0 1 2.29 5.54c0 4.32-3.51 7.84-7.85 7.84zm4.29-5.86c-.23-.12-1.38-.68-1.6-.76-.21-.08-.37-.12-.52.12s-.6.76-.73.91c-.13.16-.27.18-.5.06-.23-.12-.97-.36-1.85-1.14a6.93 6.93 0 0 1-1.28-1.59c-.13-.23-.01-.35.1-.47.1-.1.23-.27.35-.4.12-.14.16-.23.24-.38.08-.16.04-.3-.02-.41-.06-.12-.52-1.26-.72-1.72-.19-.45-.38-.39-.52-.4h-.44c-.15 0-.4.06-.62.3-.21.23-.82.8-.82 1.96s.84 2.27.96 2.43c.12.16 1.66 2.53 4.02 3.55.56.24 1 .39 1.34.5.56.18 1.07.15 1.48.09.45-.07 1.38-.56 1.57-1.11.2-.54.2-1.01.14-1.11-.06-.1-.21-.16-.44-.28z" fill="white"/></svg>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;margin-bottom:14px;">
+            <h2 style="font-size:18px;font-weight:800;color:#1c1917;letter-spacing:-.025em;margin-bottom:5px;">Good Morning, Dr. Sagar.</h2>
+            <p style="font-size:12px;color:#6b7280;line-height:1.65;max-width:280px;margin:0 auto;">A secure 4-digit verification code has been sent to your registered WhatsApp number. Please enter it below to unlock today's console.</p>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-bottom:18px;">
+            <input class="otp-box" id="otp0" type="tel" inputmode="numeric" maxlength="1" placeholder="·" />
+            <input class="otp-box" id="otp1" type="tel" inputmode="numeric" maxlength="1" placeholder="·" />
+            <input class="otp-box" id="otp2" type="tel" inputmode="numeric" maxlength="1" placeholder="·" />
+            <input class="otp-box" id="otp3" type="tel" inputmode="numeric" maxlength="1" placeholder="·" />
+          </div>
+          <button class="btn-verify" onclick="document.getElementById('otpOverlay').classList.add('hidden')">Verify &amp; Unlock Console</button>
+          <div style="text-align:center;margin-top:13px;">
+            <span style="font-size:12px;color:#a8a29e;font-weight:500;cursor:pointer;">Resend Code <span style="color:#9ca3af;">(59s)</span></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- end phone-screen -->
+  </div>
+</div>
+
+<script>
+  /* ── OTP: digit-only + auto-advance ── */
+  (function() {
+    var boxes = [document.getElementById('otp0'), document.getElementById('otp1'), document.getElementById('otp2'), document.getElementById('otp3')];
+    boxes.forEach(function(box, i) {
+      box.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace') {
+          if (!box.value && i > 0) { boxes[i-1].focus(); boxes[i-1].value = ''; boxes[i-1].classList.remove('filled'); }
+          else { box.value = ''; box.classList.remove('filled'); }
+          e.preventDefault();
+        }
+      });
+      box.addEventListener('input', function() {
+        var digit = box.value.replace(/\D/g,'').slice(-1);
+        box.value = digit;
+        if (digit) { box.classList.add('filled'); if (i < 3) boxes[i+1].focus(); }
+        else { box.classList.remove('filled'); }
+      });
+      box.addEventListener('focus', function() { box.select(); });
+    });
+    // Focus first box when OTP overlay opens
+    setTimeout(function() { if(document.getElementById('otpOverlay') && !document.getElementById('otpOverlay').classList.contains('hidden')) boxes[0].focus(); }, 400);
+  })();
+
+  /* ── Schedule accordion ── */
+  function toggleSchedule() {
+    var body    = document.getElementById('scheduleBody');
+    var chevron = document.getElementById('scheduleChevron');
+    var isOpen  = body.style.display === 'block';
+    body.style.display      = isOpen ? 'none' : 'block';
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  /* ── Toggle day ── */
+  function toggleDay(el) {
+    var on = el.dataset.active !== 'true';
+    el.dataset.active = on;
+    el.style.background = on ? '#22c55e' : '#d1d5db';
+    el.querySelector('.toggle-thumb').style.left = on ? '19px' : '3px';
+    checkScheduleChanged();
+  }
+  function checkScheduleChanged() {
+    var changed = false;
+    document.querySelectorAll('.day-toggle').forEach(function(t) { if (t.dataset.active !== t.dataset.original) changed = true; });
+    document.getElementById('saveScheduleWrap').style.display = changed ? 'block' : 'none';
+  }
+  function saveSchedule() {
+    document.querySelectorAll('.day-toggle').forEach(function(t) { t.dataset.original = t.dataset.active; });
+    document.getElementById('saveScheduleWrap').style.display = 'none';
+    var startDate = new Date(); startDate.setDate(startDate.getDate() + 28);
+    var fmt = startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    showGearSplash('Schedule Saved', 'Your new working days will take effect from ' + fmt + '. Bookings within the next 4 weeks are unaffected.');
+  }
+
+  /* ── Cancellation accordion ── */
+  function toggleCancellation() {
+    var body    = document.getElementById('cancellationBody');
+    var chevron = document.getElementById('cancellationChevron');
+    var isOpen  = body.style.display === 'block';
+    body.style.display      = isOpen ? 'none' : 'block';
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  /* ── Date browse accordion ── */
+  var BROWSE_DATA = {
+    '2026-05-17': [
+      { time:'09:00 AM', name:'Marcus T.',    reason:'Follow-up Review',              status:'done'     },
+      { time:'10:15 AM', name:'Priya Mehta',  reason:'Chest pain, shortness of breath', status:'active'   },
+      { time:'11:00 AM', name:'James K.',     reason:'Prescription Renewal',           status:'upcoming' },
+      { time:'11:30 AM', name:'Ananya R.',    reason:'Routine Checkup',                status:'upcoming' },
+      { time:'12:00 PM', name:'Ravi S.',      reason:'Diabetes Follow-up',             status:'upcoming' },
+    ],
+    '2026-05-19': [
+      { time:'10:00 AM', name:'Neha P.',      reason:'Skin allergy consultation',      status:'upcoming' },
+      { time:'10:30 AM', name:'Arjun M.',     reason:'Back pain, posture review',      status:'upcoming' },
+      { time:'11:15 AM', name:'Sunita R.',    reason:'BP monitoring & medication',     status:'upcoming' },
+    ],
+    '2026-05-20': [
+      { time:'09:30 AM', name:'Vikram D.',    reason:'Post-surgery follow-up',         status:'upcoming' },
+      { time:'10:45 AM', name:'Leena S.',     reason:'Thyroid test review',            status:'upcoming' },
+    ],
+  };
+  var STATUS_CFG = {
+    done:     { bg:'#f9f8f7', border:'#f0ede9', pbg:'#f3f4f6', pc:'#9ca3af', label:'DONE',   op:'.56' },
+    active:   { bg:'#f0fdf4', border:'#22c55e', pbg:'#22c55e', pc:'white',   label:'ACTIVE', op:'1'   },
+    upcoming: { bg:'#fafaf9', border:'#f0ede9', pbg:'#f0f9ff', pc:'#0369a1', label:'BOOKED', op:'1'   },
+  };
+  function toggleDateBrowse() {
+    var body    = document.getElementById('dateBrowseBody');
+    var chevron = document.getElementById('dateBrowseChevron');
+    var isOpen  = body.style.display === 'block';
+    body.style.display      = isOpen ? 'none' : 'block';
+    chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+    if (!isOpen) selectBrowseDate(currentBrowseDate);
+  }
+  var currentBrowseDate = '2026-05-17';
+  function selectBrowseDate(dateVal) {
+    currentBrowseDate = dateVal;
+    document.querySelectorAll('.date-chip').forEach(function(chip) {
+      var isActive = chip.dataset.date === dateVal;
+      chip.style.background = isActive ? '#1c1917' : '#f3f4f6';
+      chip.querySelector('.chip-day').style.color = isActive ? 'rgba(255,255,255,.6)' : '#9ca3af';
+      chip.querySelector('.chip-num').style.color = isActive ? 'white' : '#1c1917';
+    });
+    renderBrowseList();
+  }
+  function renderBrowseList() {
+    var dateVal = currentBrowseDate;
+    var list    = document.getElementById('browseList');
+    var appts   = BROWSE_DATA[dateVal];
+    if (!appts || !appts.length) {
+      list.innerHTML = '<p style="font-size:11.5px;color:#a8a29e;text-align:center;padding:14px 0;">No appointments for this date.</p>';
+      return;
+    }
+    list.innerHTML = appts.map(function(a) {
+      var s = STATUS_CFG[a.status];
+      return '<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:11px;background:' + s.bg + ';border:1px solid ' + s.border + ';opacity:' + s.op + ';">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:2px;">' +
+            '<span style="font-size:11px;font-weight:700;color:#6b7280;font-variant-numeric:tabular-nums;">' + a.time + '</span>' +
+            '<span style="font-size:9px;font-weight:800;letter-spacing:.07em;border-radius:5px;padding:2px 6px;background:' + s.pbg + ';color:' + s.pc + ';">' + s.label + '</span>' +
+          '</div>' +
+          '<p style="font-size:12px;font-weight:700;color:#1c1917;">' + a.name + '</p>' +
+          '<p style="font-size:10px;color:#a8a29e;margin-top:1px;">' + a.reason + '</p>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  /* ── Cancellation confirm ── */
+  function confirmCancellation() {
+    showGearSplash('Appointments Cancelled', 'All selected slots released. Patients have been notified via WhatsApp.');
+  }
+
+  /* ── Gear splash ── */
+  function showGearSplash(title, msg) {
+    document.getElementById('gearSplashTitle').textContent = title;
+    document.getElementById('gearSplashMsg').textContent   = msg;
+    var el = document.getElementById('gearSuccessSplash');
+    el.style.display = 'flex';
+  }
+  function closeGearSplash() {
+    document.getElementById('gearSuccessSplash').style.display = 'none';
+  }
+
+  /* ── Gear panel ── */
+  function openGear() {
+    document.getElementById('gearOverlay').classList.add('open');
+    document.getElementById('gearPanel').classList.add('open');
+  }
+  function closeGear() {
+    document.getElementById('gearOverlay').classList.remove('open');
+    document.getElementById('gearPanel').classList.remove('open');
+    document.getElementById('gearSuccessSplash').style.display = 'none';
+  }
+
+  /* ── Cancellation scope ── */
+  var currentScope = 'A';
+  function setScope(s) {
+    currentScope = s;
+    var btnA = document.getElementById('scopeA');
+    var btnB = document.getElementById('scopeB');
+    btnA.style.background  = s === 'A' ? 'white' : 'transparent';
+    btnA.style.color       = s === 'A' ? '#1c1917' : '#9ca3af';
+    btnA.style.boxShadow   = s === 'A' ? '0 1px 4px rgba(0,0,0,.1)' : 'none';
+    btnB.style.background  = s === 'B' ? 'white' : 'transparent';
+    btnB.style.color       = s === 'B' ? '#1c1917' : '#9ca3af';
+    btnB.style.boxShadow   = s === 'B' ? '0 1px 4px rgba(0,0,0,.1)' : 'none';
+    document.getElementById('slotGrid').style.display = s === 'B' ? 'block' : 'none';
+    updateConfirm();
+  }
+  function onDateChange() { updateConfirm(); }
+  function onSlotChange() { updateConfirm(); }
+  function updateConfirm() {
+    var dateVal = document.getElementById('cancelDate').value;
+    var card    = document.getElementById('confirmCard');
+    var summary = document.getElementById('confirmSummary');
+    if (!dateVal) { card.style.display = 'none'; return; }
+    var fmt = new Date(dateVal + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (currentScope === 'A') {
+      summary.textContent = 'All appointments on ' + fmt + ' will be cancelled and patients notified via WhatsApp.';
+      card.style.display = 'block';
+    } else {
+      var checked = document.querySelectorAll('#slotGrid input[type="checkbox"]:checked');
+      if (checked.length === 0) { card.style.display = 'none'; return; }
+      var times = Array.from(checked).map(function(cb) { return cb.closest('label').textContent.trim(); }).join(', ');
+      summary.textContent = checked.length + ' slot' + (checked.length > 1 ? 's' : '') + ' on ' + fmt + ' (' + times + ') will be released and patients alerted.';
+      card.style.display = 'block';
+    }
+  }
+
+  /* ── Notes sheet ── */
+  function openNotes() {
+    document.getElementById('notesSheet').classList.add('open');
+    var ov = document.getElementById('notesOverlay');
+    ov.style.background = 'rgba(0,0,0,.38)';
+    ov.style.pointerEvents = 'all';
+    ov.classList.add('open');
+    // reset button state on open
+    var btn = document.getElementById('sendNotesBtn');
+    if (btn) { btn.style.background = ''; btn.innerHTML = btn.innerHTML; }
+    var toast = document.getElementById('notesSentToast');
+    if (toast) toast.style.display = 'none';
+  }
+  function closeNotes() {
+    document.getElementById('notesSheet').classList.remove('open');
+    var ov = document.getElementById('notesOverlay');
+    ov.style.background = 'rgba(0,0,0,0)';
+    ov.style.pointerEvents = 'none';
+    ov.classList.remove('open');
+  }
+  function sendNotes() {
+    var btn = document.getElementById('sendNotesBtn');
+    var toast = document.getElementById('notesSentToast');
+    // morph button to sent state
+    btn.style.background = '#16a34a';
+    btn.style.boxShadow = '0 4px 14px rgba(22,163,74,.28)';
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l5 5 7-8" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Notes Sent!</span>';
+    // show toast
+    if (toast) { toast.style.display = 'flex'; }
+    // reset after 3s
+    setTimeout(function() {
+      btn.style.background = '';
+      btn.style.boxShadow = '';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill-rule="evenodd" clip-rule="evenodd" d="M22.7 9.3A9.35 9.35 0 0 0 16 6.6c-5.19 0-9.4 4.21-9.4 9.4 0 1.66.44 3.28 1.27 4.7l-1.37 5 5.16-1.35a9.38 9.38 0 0 0 4.34 1.1c5.19 0 9.4-4.21 9.4-9.4 0-2.51-.98-4.87-2.7-6.65zm-6.7 14.45a7.8 7.8 0 0 1-3.97-1.08l-.28-.17-2.93.77.78-2.86-.19-.3a7.8 7.8 0 0 1-1.2-4.21c0-4.31 3.51-7.82 7.82-7.82 2.09 0 4.05.81 5.53 2.29a7.77 7.77 0 0 1 2.29 5.54c0 4.32-3.51 7.84-7.85 7.84z" fill="white"/></svg><span>Send Notes to Patient</span>';
+      if (toast) toast.style.display = 'none';
+    }, 3000);
+  }
+  function onCustomDatePick(dateVal) {
+    if (!dateVal) return;
+    currentBrowseDate = dateVal;
+    // deselect all chips
+    document.querySelectorAll('.date-chip').forEach(function(chip) {
+      chip.style.background = '#f3f4f6';
+      chip.querySelector('.chip-day').style.color = '#9ca3af';
+      chip.querySelector('.chip-num').style.color = '#1c1917';
+    });
+    renderBrowseList();
+  }
+
+  /* ── Stats sheet ── */
+  const STATS = {
+    past: {
+      title: '📁 Past Appointment History',
+      rows: [
+        { label: 'Total Completed Visits This Month', value: '142', highlight: true },
+        { label: 'Completed This Week', value: '28' },
+        { label: 'Avg. Session Duration', value: '18 min' },
+        { label: 'Patient-Initiated Cancellations', value: '7' },
+        { label: 'Doctor-Initiated Reschedules', value: '3' },
+        { label: 'WhatsApp Notes Sent', value: '96' },
+        { label: 'Cardiology Referrals Made', value: '12' },
+      ]
+    },
+    future: {
+      title: '📅 Future Calendar Overview',
+      rows: [
+        { label: 'Total Forward Bookings', value: '48', highlight: true },
+        { label: 'Confirmed (This Week)', value: '14' },
+        { label: 'Pending Patient Confirmations', value: '6' },
+        { label: 'Next Available Slot', value: 'Mon, 10:00 AM' },
+        { label: 'First Fully Booked Day', value: 'Tue, 19 May' },
+        { label: 'Avg. Daily Load (Forecast)', value: '6 visits' },
+        { label: 'Holiday Blocks Set', value: '1' },
+      ]
+    }
+  };
+
+  function showStats(type) {
+    const data = STATS[type];
+    document.getElementById('statsTitle').textContent = data.title;
+
+    const body = document.getElementById('statsBody');
+    body.innerHTML = data.rows.map((r, i) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;${i < data.rows.length - 1 ? 'border-bottom:1px solid #f3f4f6;' : ''}">
+        <span style="font-size:12px;color:#6b7280;font-weight:500;padding-right:10px;">${r.label}</span>
+        <span style="font-size:${r.highlight ? '16px' : '13px'};font-weight:${r.highlight ? '800' : '700'};color:${r.highlight ? '#15803d' : '#1c1917'};white-space:nowrap;">${r.value}</span>
+      </div>
+    `).join('');
+
+    document.getElementById('statsSheet').classList.add('open');
+    const ov = document.getElementById('statsOverlay');
+    ov.style.background = 'rgba(0,0,0,0.38)';
+    ov.style.pointerEvents = 'all';
+
+    document.getElementById('seg-past').classList.toggle('active', type === 'past');
+    document.getElementById('seg-future').classList.toggle('active', type === 'future');
+  }
+
+  function closeStats() {
+    document.getElementById('statsSheet').classList.remove('open');
+    const ov = document.getElementById('statsOverlay');
+    ov.style.background = 'rgba(0,0,0,0)';
+    ov.style.pointerEvents = 'none';
+    document.getElementById('seg-past').classList.remove('active');
+    document.getElementById('seg-future').classList.remove('active');
+  }
+</script>
+
+</body>
+</html>
+
+<style id="__om-edit-overrides">
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(14, 14, 13) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(63, 63, 60) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(48, 48, 45) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(68, 68, 63) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(127, 127, 117) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(19, 19, 17) !important }
+span:nth-child(2) >:is(h1,h2,h3,h4,h5,h6,p,li,dt,dd,blockquote,figcaption,label,span,a,em,strong,small,td,th,caption) { color: rgb(78, 78, 69) !important }
+</style>

@@ -1,0 +1,303 @@
+/**
+ * index.css — Global styles for TeleClinic.
+ *
+ * Structure:
+ *   @layer base       — resets + background gradients (toggled by data-side attribute)
+ *   @layer components — reusable CSS component classes that Tailwind utilities alone
+ *                       cannot express (e.g. classes that use arbitrary px values,
+ *                       multi-property transitions, or CSS features like :focus pseudo-state
+ *                       combined with non-utility properties)
+ *
+ * Why not pure Tailwind utilities?
+ *   Several component classes here require either:
+ *   (a) exact pixel sizes that don't map to Tailwind scale (e.g. otp-box 54×60px), or
+ *   (b) properties that Tailwind can't compose cleanly in JSX without repetition
+ *       (e.g. every slot button sharing the same tap feedback and disabled cursor).
+ *   Using named CSS classes keeps JSX clean and provides a single place to update styles.
+ *
+ * Background gradient strategy:
+ *   App.jsx sets `document.body.setAttribute('data-side', 'patient'/'doctor')`
+ *   in a useEffect. This attribute drives the body gradient via CSS attribute
+ *   selectors below. Using a data attribute (not a class) avoids flash-of-wrong-
+ *   gradient during React hydration since the attribute is set synchronously.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* BASE                                                                        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  /* Universal box-sizing reset — avoids the common pitfall of padding pushing
+     elements outside their parent width. */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* DM Sans is loaded via <link> in index.html (Google Fonts). Setting it here
+     on body ensures all text inherits it without needing a Tailwind class. */
+  body {
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* ── Page backgrounds ── */
+  /* Radial gradients are extracted verbatim from index.html (patient) and
+     doctor.html (doctor). The focal point differs: patient is top-left (28%),
+     doctor is top-right (72%) — creating a visual distinction between the two
+     sides without any JavaScript. */
+
+  body[data-side="patient"] {
+    background: radial-gradient(ellipse at 28% 10%, #bfdbfe 0%, #dde8fd 35%, #e8f0fe 68%, #f5f3ff 100%);
+    min-height: 100vh;
+  }
+
+  body[data-side="doctor"] {
+    background: radial-gradient(ellipse at 72% 10%, #bbf7d0 0%, #d1fae5 30%, #ecfdf5 65%, #f0fdf4 100%);
+    min-height: 100vh;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* COMPONENTS                                                                  */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@layer components {
+
+  /* ── Phone shell (desktop mockup) ── */
+  /* Drop-shadow creates the "floating phone" effect on desktop. The outer ring
+     shadow (0 0 0 1px) adds a subtle dark border that separates the phone
+     silhouette from light backgrounds. */
+  .phone-wrap {
+    filter: drop-shadow(0 48px 96px rgba(0,0,0,.22)) drop-shadow(0 0 0 1px rgba(0,0,0,.55));
+  }
+
+  /* Scale the mock phone down on shorter displays so it doesn't overflow.
+     transform-origin: center top keeps the phone anchored to the header area. */
+  @media (max-height: 920px) {
+    .phone-wrap { transform: scale(.88); transform-origin: center top; }
+    body { align-items: flex-start !important; padding-top: 20px !important; }
+  }
+  @media (max-height: 780px) {
+    .phone-wrap { transform: scale(.76); transform-origin: center top; }
+  }
+
+  /* ── Scrollbar hide ── */
+  /* Applied to any container that should scroll without showing a scrollbar
+     (date strip, slot grid, settings panel body). */
+  .no-scroll::-webkit-scrollbar { display: none; }
+  .no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Shimmer animated progress fill ── */
+  /* Used in ProgressBar for the active appointment session timer.
+     background-size: 200% ensures the gradient starts fully off-screen left
+     so the shimmer sweep covers the full bar width. The shimmer keyframe
+     animates background-position from -200% to +200%, creating a sweeping
+     highlight. */
+  .shimmer-fill {
+    background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80, #22c55e, #16a34a);
+    background-size: 200% 100%;
+    animation: shimmer 2.5s linear infinite;
+  }
+
+  /* ── Active appointment slot (doctor dashboard) ── */
+  /* !important overrides the base card background and border. The pulse-glow
+     animation is defined in tailwind.config.js keyframes. */
+  .active-slot {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+    border: 1.5px solid #22c55e !important;
+    animation: pulse-glow 2.2s ease-in-out infinite;
+  }
+
+  /* ── Patient booking form inputs ── */
+  /* .tc-input is used for all text fields in BookingSheet (name, reason).
+     The :focus styles use border-blue-500 to match the patient accent colour
+     without needing a JS-controlled className toggle. */
+  .tc-input {
+    @apply w-full border border-gray-200 rounded-[14px] text-sm text-gray-900
+           outline-none bg-[#fafafa] transition-all duration-[180ms]
+           focus:bg-white focus:border-blue-500;
+    padding: 13px 15px;
+  }
+  .tc-input::placeholder { color: #9ca3af; }
+
+  /* ── Doctor consultation notes textarea ── */
+  /* Green focus ring (doctor accent) distinguishes this from patient inputs.
+     resize-none prevents the textarea from breaking the fixed-height layout. */
+  .notes-area {
+    @apply w-full border border-gray-200 rounded-xl text-gray-900 bg-[#fafaf9]
+           resize-none outline-none leading-relaxed transition-all duration-[180ms]
+           focus:border-[#22c55e] focus:bg-white;
+    padding: 11px 13px;
+    font-size: 12.5px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .notes-area::placeholder { color: #9ca3af; }
+  /* Semi-transparent ring on focus — 12% opacity avoids visual noise. */
+  .notes-area:focus { box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+
+  /* ── OTP input box ── */
+  /* Fixed 54×60px matches the design prototype exactly. caret-color uses the
+     doctor green so the blinking cursor doesn't look out of place.
+     The .filled class is toggled by OTPInput.jsx when a digit is entered —
+     it switches the border and background to give immediate per-digit feedback. */
+  .otp-box {
+    @apply text-center font-extrabold text-gray-900 border-2 border-gray-200 rounded-[14px]
+           bg-[#fafaf9] outline-none transition-all duration-[150ms];
+    width: 54px; height: 60px;
+    font-size: 24px;
+    font-family: 'DM Sans', sans-serif;
+    caret-color: #22c55e;
+  }
+  .otp-box:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.15); background: white; }
+  .otp-box.filled { border-color: #22c55e; background: #f0fdf4; }
+
+  /* ── Slot pill button (patient booking grid) ── */
+  /* Base styles shared by all slot pills regardless of state (available, held,
+     booked, selected, cutoff). State-specific colours are applied via JSX
+     className concatenation in BookingPage.slotClass(). The 100ms tap
+     transform gives instant press feedback before any async work starts. */
+  .slot-btn {
+    @apply flex items-center justify-center rounded-full font-medium
+           cursor-pointer outline-none select-none
+           transition-transform duration-100 active:scale-[.93] disabled:cursor-not-allowed;
+    min-height: 48px;
+    font-size: 13.5px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* ── Status pill (doctor timeline: DONE / ACTIVE NOW / NEXT UP / UPCOMING) ── */
+  .status-pill {
+    @apply rounded-[6px] uppercase tracking-[.07em] font-extrabold;
+    font-size: 9px;
+    padding: 2px 7px;
+  }
+
+  /* ── Segmented switcher ── */
+  /* Used in StatsSheet (Past / Future tabs) and CancellationEngine (Scope A / B).
+     Active segment gets bg-white + shadow to create the "floating pill" look. */
+  .seg-bar {
+    @apply flex gap-1 bg-gray-100 rounded-[10px] p-[3px] mt-[11px];
+  }
+  .seg-btn {
+    @apply flex-1 border-none rounded-lg font-bold cursor-pointer transition-all duration-[180ms]
+           bg-transparent text-gray-400;
+    padding: 7px 6px;
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .seg-btn.active {
+    @apply bg-white text-stone-950 shadow-sm;
+  }
+
+  /* ── Date chip (doctor browse panel + patient date strip) ── */
+  /* Both panels use the same chip shape. Colour is applied inline in JSX
+     (active chip is dark #1c1917 in doctor, accent blue in patient). */
+  .date-chip {
+    @apply flex flex-col items-center gap-[3px] border-none rounded-xl cursor-pointer
+           transition-all duration-150 select-none flex-shrink-0;
+    padding: 9px 11px;
+    min-width: 48px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .date-chip:active { transform: scale(.93); }
+
+  /* ── Toggle track + thumb (weekly schedule) ── */
+  /* CSS-driven toggle switch — no JavaScript for the animation; only the
+     `left` value of .toggle-thumb is toggled between 3px (off) and 19px (on)
+     via inline style in WeeklySchedule.jsx. The 200ms transition handles the
+     sliding thumb animation. */
+  .toggle-track {
+    @apply relative cursor-pointer flex-shrink-0 rounded-full transition-colors duration-200;
+    width: 38px; height: 22px;
+  }
+  .toggle-thumb {
+    @apply absolute rounded-full bg-white;
+    width: 16px; height: 16px;
+    top: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: left 0.2s;
+  }
+
+  /* ── Doctor action buttons ── */
+  /* .btn-push  — dark primary (e.g. "Connect Google Contacts")
+     .btn-verify — dark primary with larger padding (e.g. "Keep Existing Appointment")
+     .btn-cancel — destructive secondary (red tint, lighter border) */
+  .btn-push {
+    @apply w-full flex items-center justify-center gap-[6px] border-none rounded-xl
+           font-bold cursor-pointer transition-all duration-150 active:scale-[.98];
+    padding: 13px;
+    background: #1c1917;
+    color: #fafaf9;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-verify {
+    @apply w-full border-none rounded-[14px] font-extrabold cursor-pointer
+           transition-all duration-150 active:scale-[.98];
+    padding: 15px;
+    background: #1c1917;
+    color: white;
+    font-size: 14.5px;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -.01em;
+    box-shadow: 0 6px 22px rgba(28,25,23,.25);
+  }
+  .btn-cancel {
+    @apply w-full flex items-center justify-center gap-[6px] rounded-xl
+           font-bold cursor-pointer transition-all duration-150 active:scale-[.98];
+    padding: 12px 14px;
+    background: #fff5f5;
+    color: #b91c1c;
+    border: 1.5px solid #fca5a5;
+    font-size: 12.5px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-cancel:active { background: #fee2e2; }
+
+  /* ── Gear / settings trigger button ── */
+  /* Small square icon button used in the DashboardPage header. */
+  .gear-btn {
+    @apply flex items-center justify-center rounded-[9px] cursor-pointer
+           transition-colors duration-150 flex-shrink-0;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    width: 32px; height: 32px;
+    font-size: 15px;
+  }
+  .gear-btn:active { background: #e5e7eb; }
+
+  /* ── Section label (doctor dashboard card headers) ── */
+  /* Uppercase, wide-tracked label used above card sections:
+     "TODAY'S APPOINTMENTS", "BROWSE", etc. */
+  .section-label {
+    @apply uppercase tracking-[.09em] font-bold;
+    font-size: 10px;
+    color: #a8a29e;
+  }
+
+  /* ── Card (doctor dashboard) ── */
+  /* Warm off-white background (#f7f6f4) is the page colour; cards are white
+     with a subtle warm border and a very faint shadow. */
+  .card {
+    @apply bg-white rounded-[18px] p-[13px];
+    border: 1px solid #ebe8e4;
+    box-shadow: 0 1px 5px rgba(0,0,0,.045);
+  }
+
+  /* ── Date picker input (doctor browse panel) ── */
+  /* cursor-pointer overrides the browser default "text" cursor on a date input,
+     matching the design intent that the whole field is a calendar trigger. */
+  .date-input {
+    @apply w-full rounded-xl border border-gray-200 outline-none bg-[#fafaf9]
+           text-[13px] text-stone-950 transition-all duration-[180ms]
+           focus:border-[#22c55e] focus:bg-white cursor-pointer;
+    padding: 11px 13px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .date-input:focus { box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+}
