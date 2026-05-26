@@ -131,15 +131,32 @@ def start_scheduler() -> None:
     if _scheduler is not None:
         return
 
-    try:
-        from apscheduler.schedulers.asyncio import AsyncIOScheduler
-        from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+    # Try persistent SQLite store first; fall back to in-memory on Python 3.13+
+    # where SQLAlchemyJobStore's pickle-based serialisation hits __firstlineno__.
+    try:
+        from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
         db_url = _get_db_url()
         jobstores = {"default": SQLAlchemyJobStore(url=db_url)}
         _scheduler = AsyncIOScheduler(jobstores=jobstores, timezone=_IST)
         _scheduler.start()
         logger.info("APScheduler started with SQLite job store at %s", db_url)
+        return
+    except Exception as exc:
+        logger.warning(
+            "SQLite job store failed (%s); falling back to MemoryJobStore "
+            "(jobs will not survive a server restart)", exc
+        )
+
+    try:
+        from apscheduler.jobstores.memory import MemoryJobStore
+        _scheduler = AsyncIOScheduler(
+            jobstores={"default": MemoryJobStore()},
+            timezone=_IST,
+        )
+        _scheduler.start()
+        logger.info("APScheduler started with in-memory job store")
     except Exception as exc:
         logger.error("Failed to start scheduler: %s", exc)
         _scheduler = None
