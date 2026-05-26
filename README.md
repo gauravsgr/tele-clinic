@@ -53,18 +53,18 @@ Open **three separate terminals** and run one service per terminal:
 ```bash
 # Terminal 1 — Backend
 cd backend
-python -m venv .venv && source .venv/bin/activate   # first time only
-pip install -r requirements.txt                       # first time only
+python3 -m venv .venv && source .venv/bin/activate   # first time only
+pip install -r requirements.txt                        # first time only
 uvicorn main:app --reload --port 8000
 
 # Terminal 2 — WhatsApp Worker
 cd whatsapp-worker
-npm install                                           # first time only
+npm install                                            # first time only
 node server.js
 
 # Terminal 3 — Frontend
 cd frontend
-npm install                                           # first time only
+npm install                                            # first time only
 npm run dev
 ```
 
@@ -78,15 +78,14 @@ Then open:
 
 ### 1. Backend environment file
 
-The backend ships with a pre-configured development `.env`:
+The backend ships with a pre-configured development `.env`. Review and customise it:
 
 ```bash
 cd backend
-# .env already exists with mock defaults — review and customise:
 cat .env
 ```
 
-Key settings to change for a real deployment:
+Key settings:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -94,13 +93,11 @@ Key settings to change for a real deployment:
 | `DOCTOR_NAME` | `Dr. Priya Sharma` | Displayed in WhatsApp messages |
 | `WHATSAPP_MODE` | `mock` | `mock` = log to file, no real WhatsApp; `real` = live |
 | `SESSION_SECRET_KEY` | dev value | **Change in production** — min 32 chars |
-| `DOCTOR_EMERGENCY_PIN_HASH` | bcrypt of `9999` | Hash of emergency login PIN |
-| `GOOGLE_CLIENT_ID` | placeholder | Google Cloud Console OAuth client |
-| `GOOGLE_CLIENT_SECRET` | placeholder | Google Cloud Console OAuth client |
+| `DOCTOR_EMERGENCY_PIN_HASH` | bcrypt of `9999` | Bcrypt hash of the emergency doctor login PIN |
+| `GOOGLE_CLIENT_ID` | placeholder | From Google Cloud Console (see Google OAuth setup below) |
+| `GOOGLE_CLIENT_SECRET` | placeholder | From Google Cloud Console |
 
 ### 2. Frontend environment (optional)
-
-Create `frontend/.env.local` to set the doctor's phone for the OTP gate:
 
 ```bash
 echo "VITE_DOCTOR_PHONE=919876543210" > frontend/.env.local
@@ -118,19 +115,38 @@ DOCTOR_PHONE=919876543210   # E.164, no +
 
 ---
 
+## Mock Mode (default for local dev)
+
+With `WHATSAPP_MODE=mock` (the default), **no WhatsApp account or phone is needed**:
+
+- All OTPs are always **`0000`** — just type that when any OTP prompt appears (patient booking, patient lookup, doctor login).
+- The emergency doctor PIN is **`9999`** (bypasses OTP entirely for doctor login).
+- WhatsApp messages are printed to the backend terminal and written to `backend/data/mock-messages.jsonl`.
+- The WhatsApp worker emits a fake pairing code `ABCD-1234` and then `auth_ready` automatically.
+
+> **After changing `.env`**, restart the backend — settings are cached at startup.
+
+---
+
 ## Running Each Service
 
 ### Backend
 
 ```bash
 cd backend
-source .venv/bin/activate        # activate virtualenv
+source .venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
 
+Expected startup output:
+```
+[seed_slots] Slot window refreshed for the next 28 days.
+INFO:     Application startup complete.
+```
+
 - API docs (Swagger): http://localhost:8000/docs
-- API docs (ReDoc): http://localhost:8000/redoc
-- SQLite database created at: `backend/data/clinic.db`
+- SQLite database: `backend/data/clinic.db`
+- Mock WhatsApp log: `backend/data/mock-messages.jsonl`
 
 ### WhatsApp Worker
 
@@ -139,15 +155,17 @@ cd whatsapp-worker
 node server.js
 ```
 
-**Mock mode** (default, `WHATSAPP_MODE=mock`):
-- Messages are written to `whatsapp-worker/mock-messages.jsonl`
-- Socket.io emits a fake pairing code `ABCD-1234` after 1 s and `auth_ready` after 4 s
-- No Chromium or WhatsApp account required
+**Mock mode** (default):
+- No Chromium or WhatsApp account required.
+- Socket.io emits fake pairing code `ABCD-1234` after 1 s and `auth_ready` after 4 s.
+- Messages are written to `whatsapp-worker/mock-messages.jsonl`.
 
 **Real mode** (`WHATSAPP_MODE=real`):
-- Requires `DOCTOR_PHONE` env var
-- Starts Chromium via whatsapp-web.js on first run
-- Doctor visits `/doctor` → Setup page → enters the 8-character pairing code shown in the UI into WhatsApp → Linked Devices → Link a Device
+- Requires `DOCTOR_PHONE` env var.
+- Starts Chromium via whatsapp-web.js on first run.
+- Doctor visits `/doctor` → Setup → enters the 8-character pairing code shown in the UI into WhatsApp → Linked Devices → Link a Device.
+
+> If the worker is not running, the Setup page will show a red error: *"WhatsApp worker not running."* The rest of the app (booking, OTPs) works fine without it in mock mode.
 
 ### Frontend
 
@@ -157,8 +175,8 @@ npm run dev
 ```
 
 - Vite dev server: http://localhost:5173
-- All `/api/*` requests are proxied to the FastAPI backend at `localhost:8000`
-- Hot Module Replacement (HMR) is enabled
+- All `/api/*` requests are proxied to the FastAPI backend.
+- Hot Module Replacement (HMR) is enabled.
 
 ---
 
@@ -169,20 +187,20 @@ npm run dev
 ```bash
 cd frontend
 npm test               # run once
-npm run test:watch     # watch mode (re-runs on save)
+npm run test:watch     # watch mode
 ```
 
-Expected output: **154 tests, 0 failures** across 5 test files.
+Expected: **154 tests, 0 failures** across 5 test files.
 
 ### Backend (pytest + pytest-asyncio)
 
 ```bash
 cd backend
 source .venv/bin/activate
-pytest -v
+python3 -m pytest tests/ -v
 ```
 
-Tests use an in-memory SQLite database — no cleanup needed.
+Expected: **127 tests, 0 failures**. Uses an in-memory SQLite DB — no cleanup needed.
 
 ### WhatsApp Worker (Jest)
 
@@ -193,6 +211,59 @@ npm test
 
 ---
 
+## Google OAuth Setup (for Google Contacts integration)
+
+The Google Contacts integration adds patients to the doctor's contacts 5 minutes before their appointment, then removes them 30 minutes after the slot ends. It requires a real Google Cloud OAuth client.
+
+### Step 1 — Create a Google Cloud Project
+
+1. Go to **[console.cloud.google.com](https://console.cloud.google.com)**
+2. Click the project dropdown (top left) → **New Project**
+3. Name it `TeleClinic` → **Create**
+
+### Step 2 — Enable the People API
+
+1. **APIs & Services → Library**
+2. Search **"Google People API"** → click → **Enable**
+
+### Step 3 — Configure the OAuth consent screen
+
+1. **APIs & Services → OAuth consent screen**
+2. Choose **External** → **Create**
+3. Fill in: App name (`TeleClinic`), user support email, developer contact email
+4. Click through Scopes (skip) and Test users
+5. **Add your own Google account email** as a test user (required while app is in "Testing" status)
+6. Finish
+
+### Step 4 — Create OAuth credentials
+
+1. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+2. Application type: **Web application**
+3. Name: `TeleClinic local`
+4. Under **Authorised redirect URIs** → Add: `http://localhost:8000/oauth2callback`
+5. Click **Create** — copy the **Client ID** and **Client Secret**
+
+### Step 5 — Update `.env`
+
+```dotenv
+GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<your-client-secret>
+GOOGLE_REDIRECT_URI=http://localhost:8000/oauth2callback
+```
+
+Restart the backend after editing `.env`.
+
+### Step 6 — Authorise
+
+1. Doctor logs in at http://localhost:5173/doctor
+2. Navigate to **Setup** → click **Connect Google Contacts**
+3. Browser opens Google's OAuth consent screen
+4. Google may warn *"Unverified App"* — click **Advanced → Go to TeleClinic (unsafe)**
+5. After consent, `GOOGLE_REFRESH_TOKEN` is saved to `backend/.env` automatically
+6. The Setup page shows "Google Connected ✓"
+
+---
+
 ## Building for Production
 
 ```bash
@@ -200,28 +271,16 @@ npm test
 cd frontend
 npm run build          # outputs to frontend/dist/
 
-# Serve the dist/ folder with a static host (Nginx, Caddy, etc.)
+# Serve dist/ with a static host (Nginx, Caddy, etc.)
 # Point /api/* to the FastAPI backend
 ```
 
-The FastAPI backend can be deployed with:
+The FastAPI backend:
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
 ```
 
-> **Note:** Use `--workers 1` — the in-memory APScheduler and single aiosqlite connection are not process-safe across workers.
-
----
-
-## Google OAuth (local dev)
-
-1. Create a Google Cloud project → Enable **People API**
-2. Create an OAuth 2.0 Client ID (type: Web application)
-3. Add `http://localhost:8000/oauth2callback` as an authorised redirect URI
-4. Copy client ID and secret to `backend/.env`
-5. Visit http://localhost:5173/doctor → Setup → Connect Google Contacts
-6. Google will show "Unverified App" — click **Advanced → Go to [Project] (unsafe)**
-7. After authorisation, the `GOOGLE_REFRESH_TOKEN` is stored in `.env` automatically
+> **Use `--workers 1`** — the in-memory APScheduler and single aiosqlite connection are not process-safe across multiple workers.
 
 ---
 
@@ -264,17 +323,29 @@ tele-clinic/
 ├── index.html          ← Patient UI prototype (read-only design reference)
 ├── doctor.html         ← Doctor UI prototype (read-only design reference)
 ├── instructions.md     ← Full product spec + user stories
-├── technical-design.md ← API shapes, DB schema decisions
+├── technical-design.md ← API shapes, DB schema, mock strategy
 │
 ├── backend/            ← FastAPI + SQLite
-│   ├── main.py         ← Application factory + lifespan
+│   ├── main.py         ← Application factory + lifespan (calls seed_slots on startup)
 │   ├── config.py       ← Settings (pydantic-settings, reads .env)
-│   ├── database.py     ← aiosqlite connection + schema init
+│   ├── database.py     ← aiosqlite connection + schema init + slot seeding
 │   ├── schemas.py      ← Pydantic v2 request/response models
 │   ├── routers/        ← HTTP endpoint handlers
-│   ├── services/       ← Business logic (OTP, hold, scheduler, WhatsApp, Google)
+│   │   ├── auth.py         ← POST /otp/send, POST /otp/verify
+│   │   ├── appointments.py ← GET /slots, POST /hold, POST /book, DELETE, lookup
+│   │   ├── doctor.py       ← GET /doctor/schedule, POST /doctor/notes, stats
+│   │   ├── schedule.py     ← Weekly schedule CRUD
+│   │   ├── cancellation.py ← Doctor cancel-day / cancel-slots
+│   │   └── setup.py        ← Google OAuth endpoints
+│   ├── services/       ← Business logic
+│   │   ├── otp_service.py      ← OTP generate/verify + session tokens
+│   │   ├── hold_service.py     ← 2-minute slot hold
+│   │   ├── slot_rules.py       ← 28-day window, 1-hour cut-off, one-per-day
+│   │   ├── whatsapp_client.py  ← Template selection + HTTP send to worker
+│   │   ├── google_contacts.py  ← People API add/wipe
+│   │   └── scheduler.py        ← APScheduler jobs (reminder, contact add/wipe)
 │   ├── migrations/     ← SQL schema (001_initial_schema.sql)
-│   └── tests/          ← pytest test suite
+│   └── tests/          ← pytest suite (127 tests)
 │
 ├── frontend/           ← React 18 + Vite + Tailwind CSS
 │   ├── src/

@@ -24,11 +24,11 @@
 |---|---|
 | Base URL | `http://localhost:8000` (dev) |
 | Content-Type | `application/json` for all request and response bodies |
-| Auth — patient session | `X-Session-Token: <token>` header (token returned by `POST /otp/verify`) |
-| Auth — doctor session | `X-Doctor-Token: <token>` header (token returned by `POST /otp/verify` with `purpose=doctor_login`) |
+| Auth — patient session | `Authorization: Bearer <token>` header (session token returned by `POST /otp/verify`) |
+| Auth — doctor session | `Authorization: Bearer <token>` header (session token returned by `POST /otp/verify` with `purpose=doctor_login`) |
 | Datetimes | ISO 8601 with explicit `+05:30` offset — never bare UTC strings |
 | Phone numbers | E.164 pure digits — `919876543210` (no `+`, spaces, or dashes) |
-| Slot IDs | UUID v4 strings |
+| Slot IDs | ISO 8601 datetime strings (e.g. `2026-05-28T10:00:00+05:30`) — `id` equals `slot_time` |
 | Error envelope | `{ "error": "<machine_code>", "message": "<human string>" }` |
 
 ### Common error codes
@@ -143,12 +143,15 @@ returns the existing booking without error if already `booked`.
 ```json
 {
   "slot_id": "a1b2c3d4-...",
-  "otp_token": "7832",
+  "otp_token": "<session_token from POST /otp/verify>",
   "patient_name": "Rahul Verma",
   "phone": "919876543210",
   "reason": "Routine check-up"
 }
 ```
+
+`otp_token` is the **session token** returned by `POST /otp/verify` — not the raw 4-digit OTP
+code. The OTP is consumed by `/otp/verify`; `/book` validates the resulting session token.
 
 `reason` is optional.
 
@@ -169,7 +172,7 @@ returns the existing booking without error if already `booked`.
 ```
 
 `session_token` is the patient's session token — store in `sessionStorage` and send as
-`X-Session-Token` on subsequent requests.
+`Authorization: Bearer <session_token>` on subsequent requests.
 
 Side effects triggered by this endpoint:
 - Slot status set to `booked`.
@@ -203,7 +206,7 @@ Patient-initiated cancellation. Enforces the 11:59 PM IST deadline.
 
 **Headers required**
 
-`X-Session-Token: <patient session token>`
+`Authorization: Bearer <patient session token>`
 
 **Success — 200**
 
@@ -248,7 +251,7 @@ Finds the patient's upcoming appointment and most recent past visit.
 
 **Headers required**
 
-`X-Session-Token: <patient session token>` — session token's phone must match `phone` param.
+`Authorization: Bearer <patient session token>` — session token's phone must match `phone` param.
 
 **Success — 200**
 
@@ -423,7 +426,7 @@ Returns all appointments for today (IST). Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 200**
 
@@ -472,7 +475,7 @@ Returns appointments for any calendar date. Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 200**
 
@@ -495,7 +498,7 @@ Returns past and future metrics computed from the live database. Doctor auth req
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 200**
 
@@ -538,7 +541,7 @@ Sends the doctor's typed notes to the active patient via WhatsApp. Doctor auth r
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Request body**
 
@@ -584,7 +587,7 @@ Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Request body**
 
@@ -628,7 +631,7 @@ Cancels specific slots by ID. Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Request body**
 
@@ -670,7 +673,7 @@ Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 200**
 
@@ -707,7 +710,7 @@ by the server, regardless of any value the client sends. Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Request body**
 
@@ -754,7 +757,7 @@ Doctor auth required.
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 200**
 
@@ -784,7 +787,7 @@ Doctor auth required (checked before redirect).
 
 **Headers required**
 
-`X-Doctor-Token: <doctor session token>`
+`Authorization: Bearer <doctor session token>`
 
 **Success — 302**
 
@@ -1230,6 +1233,37 @@ tail -f whatsapp-worker/mock-messages.jsonl | python3 -m json.tool
 wc -l whatsapp-worker/mock-messages.jsonl
 ```
 
+The backend also prints every mock send to stdout:
+```
+[MOCK WhatsApp] → 919876543210: Your TeleClinic OTP is 0000. Valid for 5 minutes…
+```
+
+### 3.7 Mock OTP code
+
+In `WHATSAPP_MODE=mock`, `otp_service.generate_otp()` always produces the fixed code **`0000`**
+instead of a random 4-digit number. This means:
+
+- Patients and the doctor can always type `0000` when prompted for an OTP — no need to check log files.
+- The emergency doctor PIN (`9999` by default, bcrypt-hashed in `DOCTOR_EMERGENCY_PIN_HASH`) still works for `purpose=doctor_login` as a bypass.
+- Tests that call `generate_otp()` in mock mode must account for both calls returning `"0000"`.
+
+In `WHATSAPP_MODE=real`, a cryptographically random 4-digit code is generated and sent via WhatsApp.
+
+### 3.8 Appointment slot seeding
+
+`database.py` exports `seed_slots(db)`, called from `main.py` lifespan on **every startup**.
+
+- Inserts `available` slots for the next 28 calendar days (inclusive of today).
+- Sessions: **morning** 10:00–11:45 IST (8 slots × 15 min) + **evening** 16:00–18:45 IST (12 slots × 15 min) = 20 slots per open day.
+- Uses `INSERT OR IGNORE` — existing slots with their status and patient data are untouched.
+- Open days come from `weekly_schedule` (default: Monday–Friday). Weekend days are skipped.
+- Slot `id` equals `slot_time` (the ISO 8601 string, e.g. `2026-05-28T10:00:00+05:30`). The frontend generates the same strings locally so `POST /hold` can find the row by `id`.
+
+Expected startup log line:
+```
+[seed_slots] Slot window refreshed for the next 28 days.
+```
+
 ### 3.7 Switching to real mode
 
 1. Ensure a real WhatsApp account is available on a phone.
@@ -1278,7 +1312,7 @@ library (`components/`) — they have separate context trees and no shared state
 // What session.js stores and reads from sessionStorage under key 'tele_session'
 {
   phone:        "919876543210",  // E.164; set once OTP verified
-  sessionToken: "eyJhbGci...",   // opaque token; sent as X-Session-Token header
+  sessionToken: "eyJhbGci...",   // opaque token; sent as Authorization header
   expiresAt:    "2026-05-25T23:59:00+05:30",  // 11:59 PM IST today
   lastActivity: 1748188980000    // Unix ms; updated on every user interaction
 }
@@ -1403,13 +1437,15 @@ cd backend
 cp .env.example .env          # first time only; fill in values
 uvicorn main:app --reload --port 8000
 # Expected output:
+# [seed_slots] Slot window refreshed for the next 28 days.
 # INFO:     Application startup complete.
 # INFO:     Uvicorn running on http://0.0.0.0:8000
 # INFO:     APScheduler started; loaded N pending jobs from database
 ```
 
 On first run, `database.py` runs `migrations/001_initial_schema.sql` and creates
-`data/clinic.db` if it does not exist.
+`data/clinic.db` if it does not exist. On every run, `seed_slots()` generates 20 available
+appointment slots per open day for the next 28 days using `INSERT OR IGNORE`.
 
 #### Terminal 3 — Frontend
 
