@@ -31,9 +31,18 @@ export default function PhoneWrapper({ children }) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Mobile: no shell — children fill the viewport directly.
+  // Mobile: no shell — but wrap in a bounded div so that:
+  //   1. `h-full` on child pages resolves to the visual viewport height (not auto).
+  //   2. `position: absolute; bottom: 0` BottomSheets anchor to the viewport
+  //      bottom, not the bottom of an unconstrained content div.
+  // `100dvh` (dynamic viewport height) accounts for mobile browser chrome
+  // (address bar, navigation bar) that `100vh` ignores on iOS/Android.
   if (isMobile) {
-    return <>{children}</>;
+    return (
+      <div style={{ height: '100dvh', overflow: 'hidden' }}>
+        {children}
+      </div>
+    );
   }
 
   // Desktop: full iPhone shell.

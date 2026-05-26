@@ -126,8 +126,12 @@ export default function BookingSheet({ open, onClose, onSubmit, slotISO = '', ac
         )}
       </div>
 
-      {/* ── Patient details form — scrollable body ── */}
-      <div className="px-[20px] pt-[18px] pb-[4px] overflow-y-auto flex-1">
+      {/* ── Patient details form — scrollable body ──
+          `min-h-0` overrides the default `min-height: auto` on flex children.
+          Without it, the body cannot shrink below its content height, so the
+          panel's overflow-hidden would clip the footer instead of the body
+          scrolling when the panel hits its maxHeight cap. */}
+      <div className="px-[20px] pt-[18px] pb-[4px] overflow-y-auto flex-1 min-h-0">
         {/* Full Name */}
         <div className="mb-[14px]">
           <label className="text-[12px] font-semibold text-gray-700 block mb-[6px] tracking-[0.01em]">

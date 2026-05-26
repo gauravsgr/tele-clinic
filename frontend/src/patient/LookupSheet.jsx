@@ -190,8 +190,10 @@ export default function LookupSheet({ open, onClose, accent = '#2563eb' }) {
 
       {/* ── Scrollable body — step content without primary CTA buttons ──
           Buttons are extracted to the pinned footer below so they stay
-          visible regardless of how much content the step renders. */}
-      <div className="px-[20px] pt-[8px] flex-1 overflow-y-auto">
+          visible regardless of how much content the step renders.
+          `min-h-0` lets the flex algorithm shrink this div below content
+          height so the panel's maxHeight cap doesn't clip the footer. */}
+      <div className="px-[20px] pt-[8px] flex-1 overflow-y-auto min-h-0">
 
         {/* ── STEP 1: Phone entry ── */}
         {step === 'phone' && (
