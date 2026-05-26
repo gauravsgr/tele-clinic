@@ -14,6 +14,7 @@ import pytest
 import pytest_asyncio
 
 from httpx import AsyncClient, ASGITransport
+from services.otp_service import create_session_token
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -84,18 +85,19 @@ async def test_full_booking_flow(full_app, db):
     assert r.status_code == 200, r.text
     assert r.json()["sent"] is True
 
-    # 2. Get OTP directly from DB (bypass WhatsApp in mock mode)
-    from services.otp_service import generate_otp
-    code, _ = await generate_otp(phone, "booking", db)
+    # 2. Verify OTP (mock mode: always "0000") → get session token
+    r = await full_app.post("/otp/verify", json={"phone": phone, "code": "0000", "purpose": "booking"})
+    assert r.status_code == 200, r.text
+    session_token = r.json()["session_token"]
 
     # 3. Hold the slot
     r = await full_app.post("/hold", json={"slot_id": slot_id, "phone": phone})
     assert r.status_code == 200, r.text
     assert r.json()["hold_id"] == slot_id
 
-    # 4. Book
+    # 4. Book using the session token from step 2
     r = await full_app.post("/book", json={
-        "slot_id": slot_id, "otp_token": code,
+        "slot_id": slot_id, "otp_token": session_token,
         "patient_name": "Integration Patient", "phone": phone, "reason": "headache",
     })
     assert r.status_code == 200, r.text
@@ -106,7 +108,7 @@ async def test_full_booking_flow(full_app, db):
     # 5. Lookup
     r = await full_app.get(
         "/appointments/lookup",
-        headers={"X-Session-Token": session_token},
+        headers={"Authorization": "Bearer " + session_token},
     )
     assert r.status_code == 200, r.text
     assert r.json()["upcoming"]["id"] == slot_id
@@ -114,7 +116,7 @@ async def test_full_booking_flow(full_app, db):
     # 6. Cancel
     r = await full_app.delete(
         f"/appointments/{slot_id}",
-        headers={"X-Session-Token": session_token},
+        headers={"Authorization": "Bearer " + session_token},
     )
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "available"
@@ -135,13 +137,15 @@ async def test_full_booking_flow(full_app, db):
 async def test_cancel_and_rebook_flow(full_app, db):
     """US-06: cancel existing + hold new slot atomically."""
     phone = "919876543210"
-    # Book a slot
+    # Book a slot (send OTP → verify → hold → book)
     sid1 = await _insert_available_slot(db, _future_slot(days=5, hour=10))
-    from services.otp_service import generate_otp
-    code, _ = await generate_otp(phone, "booking", db)
+    await full_app.post("/otp/send", json={"phone": phone, "purpose": "booking"})
+    r = await full_app.post("/otp/verify", json={"phone": phone, "code": "0000", "purpose": "booking"})
+    assert r.status_code == 200, r.text
+    session_token = r.json()["session_token"]
     await full_app.post("/hold", json={"slot_id": sid1, "phone": phone})
     r = await full_app.post("/book", json={
-        "slot_id": sid1, "otp_token": code,
+        "slot_id": sid1, "otp_token": session_token,
         "patient_name": "Rebook Patient", "phone": phone,
     })
     assert r.status_code == 200
@@ -159,10 +163,12 @@ async def test_cancel_and_rebook_flow(full_app, db):
     assert data["cancelled_id"] == sid1
     assert data["hold_id"] == sid2
 
-    # Complete booking on new slot
-    code2, _ = await generate_otp(phone, "booking", db)
+    # Complete booking on new slot.
+    # Use create_session_token directly to avoid OTP resend cooldown
+    # (the OTP flow itself is covered by test_full_booking_flow).
+    session_token2, _ = create_session_token(phone, "patient")
     r = await full_app.post("/book", json={
-        "slot_id": sid2, "otp_token": code2,
+        "slot_id": sid2, "otp_token": session_token2,
         "patient_name": "Rebook Patient", "phone": phone,
     })
     assert r.status_code == 200
@@ -193,7 +199,7 @@ async def test_doctor_flow(full_app, db):
     # View today's schedule
     r = await full_app.get(
         "/doctor/schedule",
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     assert r.status_code == 200
     appointments = r.json()["appointments"]
@@ -203,7 +209,7 @@ async def test_doctor_flow(full_app, db):
     r = await full_app.post(
         "/doctor/notes",
         json={"appointment_id": sid, "text": "Patient has fever. Paracetamol prescribed."},
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     assert r.status_code == 200
     assert r.json()["sent"] is True
@@ -211,7 +217,7 @@ async def test_doctor_flow(full_app, db):
     # Stats
     r = await full_app.get(
         "/doctor/stats",
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     assert r.status_code == 200
 
@@ -225,7 +231,7 @@ async def test_weekly_schedule_flow(full_app, db):
     # View schedule
     r = await full_app.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     assert r.status_code == 200
     assert len(r.json()) == 7
@@ -235,7 +241,7 @@ async def test_weekly_schedule_flow(full_app, db):
     r = await full_app.put(
         "/doctor/weekly-schedule",
         json=all_days,
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     assert r.status_code == 200
     assert r.json()["saved"] is True
@@ -243,7 +249,7 @@ async def test_weekly_schedule_flow(full_app, db):
     # Confirm Wednesday is now closed
     r = await full_app.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": doctor_token},
+        headers={"Authorization": "Bearer " + doctor_token},
     )
     days = {d["day_of_week"]: d for d in r.json()}
     assert days[2]["is_open"] is False

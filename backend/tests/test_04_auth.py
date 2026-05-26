@@ -75,11 +75,14 @@ async def test_only_latest_otp_valid(db):
     code1, _ = await generate_otp("919876543210", "booking", db)
     code2, _ = await generate_otp("919876543210", "booking", db)
 
-    # code1 should now be invalid
-    with pytest.raises(ValueError, match="otp_invalid"):
-        await verify_otp("919876543210", code1, "booking", db)
+    if code1 != code2:
+        # Real mode: code1 is immediately invalid once code2 is generated,
+        # because generate_otp marks all prior unused tokens as used.
+        with pytest.raises(ValueError, match="otp_invalid"):
+            await verify_otp("919876543210", code1, "booking", db)
 
-    # code2 should still work
+    # code2 should always work (real mode: distinct code; mock mode: the one
+    # still-active "0000" token).
     await verify_otp("919876543210", code2, "booking", db)
 
 

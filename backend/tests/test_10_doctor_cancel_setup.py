@@ -78,7 +78,7 @@ async def test_get_doctor_schedule_auth_required(all_routers_client):
 async def test_get_doctor_schedule_happy(all_routers_client, db):
     resp = await all_routers_client.get(
         "/doctor/schedule",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -94,7 +94,7 @@ async def test_get_doctor_appointments_specific_date(all_routers_client, db):
 
     resp = await all_routers_client.get(
         f"/doctor/appointments?date={target}",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     appointments = resp.json()["appointments"]
@@ -106,7 +106,7 @@ async def test_get_doctor_appointments_specific_date(all_routers_client, db):
 async def test_get_doctor_appointments_bad_date(all_routers_client):
     resp = await all_routers_client.get(
         "/doctor/appointments?date=not-a-date",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 400
 
@@ -117,7 +117,7 @@ async def test_get_doctor_appointments_bad_date(all_routers_client):
 async def test_get_doctor_stats_happy(all_routers_client):
     resp = await all_routers_client.get(
         "/doctor/stats",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -141,7 +141,7 @@ async def test_post_doctor_notes_happy(all_routers_client, db):
     resp = await all_routers_client.post(
         "/doctor/notes",
         json={"appointment_id": sid, "text": "Prescribing amlodipine 5mg once daily."},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     assert resp.json()["sent"] is True
@@ -152,7 +152,7 @@ async def test_post_doctor_notes_not_found(all_routers_client):
     resp = await all_routers_client.post(
         "/doctor/notes",
         json={"appointment_id": str(uuid.uuid4()), "text": "Notes text here."},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 404
 
@@ -170,7 +170,7 @@ async def test_post_doctor_notes_not_active(all_routers_client, db):
     resp = await all_routers_client.post(
         "/doctor/notes",
         json={"appointment_id": sid, "text": "Some notes."},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"] == "not_active"
@@ -197,7 +197,7 @@ async def test_cancel_day_happy(all_routers_client, db):
     resp = await all_routers_client.post(
         "/doctor/cancel-day",
         json={"date": target},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -210,7 +210,7 @@ async def test_cancel_day_no_bookings(all_routers_client):
     resp = await all_routers_client.post(
         "/doctor/cancel-day",
         json={"date": "2030-01-01"},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 404
     assert resp.json()["detail"]["error"] == "no_bookings"
@@ -234,7 +234,7 @@ async def test_cancel_slots_happy(all_routers_client, db):
     resp = await all_routers_client.post(
         "/doctor/cancel-slots",
         json={"slot_ids": [sid1, sid2]},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -250,7 +250,7 @@ async def test_cancel_slots_skips_not_found(all_routers_client, db):
     resp = await all_routers_client.post(
         "/doctor/cancel-slots",
         json={"slot_ids": [sid, fake_id]},
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -273,7 +273,7 @@ async def test_google_status_not_configured(all_routers_client):
     """With no GOOGLE_REFRESH_TOKEN, should return connected=False."""
     resp = await all_routers_client.get(
         "/setup/google-status",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -288,14 +288,14 @@ async def test_google_status_auth_required(all_routers_client):
 
 @pytest.mark.asyncio
 async def test_google_auth_missing_config(all_routers_client):
-    """With placeholder client_id, should redirect to error or return 500."""
+    """With placeholder client_id, should return JSON auth_url or 500."""
     resp = await all_routers_client.get(
         "/setup/google-auth",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
         follow_redirects=False,
     )
-    # Either 302/307 redirect to Google (if client_id is set) or 500
-    assert resp.status_code in (302, 307, 500)
+    # 200 with {auth_url} if client_id is configured, 500 if config missing
+    assert resp.status_code in (200, 500)
 
 
 @pytest.mark.asyncio

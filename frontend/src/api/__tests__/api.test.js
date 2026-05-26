@@ -108,7 +108,7 @@ describe('bookSlot', () => {
         body: JSON.stringify({
           slot_id: 'slot-abc',
           otp_token: 'tok123',
-          name: 'Ravi',
+          patient_name: 'Ravi',
           phone: '919876543210',
           reason: 'Fever',
         }),

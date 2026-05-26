@@ -38,7 +38,7 @@ def _doctor_token():
 async def test_get_weekly_schedule_returns_7_days(app_client):
     resp = await app_client.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     days = resp.json()
@@ -49,7 +49,7 @@ async def test_get_weekly_schedule_returns_7_days(app_client):
 async def test_get_weekly_schedule_correct_labels(app_client):
     resp = await app_client.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     labels = [d["label"] for d in resp.json()]
     expected = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -61,7 +61,7 @@ async def test_get_weekly_schedule_default_open_days(app_client):
     """Mon–Fri should be open, Sat–Sun closed (seeded in conftest)."""
     resp = await app_client.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     days = resp.json()
     for d in days:
@@ -84,7 +84,7 @@ async def test_put_weekly_schedule_saves(app_client):
     resp = await app_client.put(
         "/doctor/weekly-schedule",
         json=all_open,
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -102,11 +102,11 @@ async def test_put_weekly_schedule_reflects_in_get(app_client):
     await app_client.put(
         "/doctor/weekly-schedule",
         json=all_closed,
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     resp = await app_client.get(
         "/doctor/weekly-schedule",
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert all(not d["is_open"] for d in resp.json())
 
@@ -117,7 +117,7 @@ async def test_put_weekly_schedule_wrong_count(app_client):
     resp = await app_client.put(
         "/doctor/weekly-schedule",
         json=only_five,
-        headers={"X-Doctor-Token": _doctor_token()},
+        headers={"Authorization": "Bearer " + _doctor_token()},
     )
     assert resp.status_code == 400
     assert resp.json()["detail"]["error"] == "validation_error"

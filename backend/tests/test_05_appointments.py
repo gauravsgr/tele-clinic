@@ -260,10 +260,10 @@ async def test_post_book_happy(app_client, db):
     sid = await _insert_available_slot(db)
     # Place hold
     await app_client.post("/hold", json={"slot_id": sid, "phone": "919876543210"})
-    # Generate OTP
-    code, _ = await generate_otp("919876543210", "booking", db)
+    # Create a valid patient session token (as /otp/verify would return)
+    session_token, _ = create_session_token("919876543210", "patient")
     resp = await app_client.post("/book", json={
-        "slot_id": sid, "otp_token": code,
+        "slot_id": sid, "otp_token": session_token,
         "patient_name": "Alice", "phone": "919876543210", "reason": "fever",
     })
     assert resp.status_code == 200
@@ -312,16 +312,16 @@ async def test_delete_appointment_happy(app_client, db):
     # Book a slot for the future (>1 day away so cancel deadline not passed)
     sid = await _insert_available_slot(db, _future_slot(days=5))
     await app_client.post("/hold", json={"slot_id": sid, "phone": "919876543210"})
-    code, _ = await generate_otp("919876543210", "booking", db)
+    session_token, _ = create_session_token("919876543210", "patient")
     book_resp = await app_client.post("/book", json={
-        "slot_id": sid, "otp_token": code,
+        "slot_id": sid, "otp_token": session_token,
         "patient_name": "Alice", "phone": "919876543210",
     })
     session_token = book_resp.json()["session_token"]
 
     resp = await app_client.delete(
         f"/appointments/{sid}",
-        headers={"X-Session-Token": session_token},
+        headers={"Authorization": "Bearer " + session_token},
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "available"
@@ -347,7 +347,7 @@ async def test_delete_appointment_forbidden(app_client, db):
     other_token, _ = create_session_token("919111111111", "patient")
     resp = await app_client.delete(
         f"/appointments/{sid}",
-        headers={"X-Session-Token": other_token},
+        headers={"Authorization": "Bearer " + other_token},
     )
     assert resp.status_code == 403
 
@@ -370,7 +370,7 @@ async def test_delete_appointment_cancel_deadline_passed(app_client, db):
     token, _ = create_session_token("919876543210", "patient")
     resp = await app_client.delete(
         f"/appointments/{sid}",
-        headers={"X-Session-Token": token},
+        headers={"Authorization": "Bearer " + token},
     )
     assert resp.status_code == 409
     assert resp.json()["detail"]["error"] == "cancel_deadline_passed"
@@ -387,7 +387,7 @@ async def test_lookup_happy(app_client, db):
     token, _ = create_session_token("919876543210", "patient")
     resp = await app_client.get(
         "/appointments/lookup",
-        headers={"X-Session-Token": token},
+        headers={"Authorization": "Bearer " + token},
     )
     assert resp.status_code == 200
     data = resp.json()
